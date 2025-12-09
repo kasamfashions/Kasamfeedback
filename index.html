@@ -8,7 +8,7 @@
     <link 
   rel="icon" 
   type="image/png" 
-  href="https://raw.githubusercontent.com/kasamfashions/Kasamfeedback/2f0b8e0d7cd18cafa3aec383b55d6d884258d293/Feedback.png" 
+  href="https://raw.githubusercontent.com/kasamfashions/Kasamfeedback/2f0b8e0d7cd18cafa3aec383b55d6d884258d293/Feedback.png"  
 />
     
     <script src="https://cdn.tailwindcss.com"></script>
@@ -95,7 +95,7 @@
       } from 'lucide-react';
       import { GoogleGenAI } from "@google/genai";
       import { initializeApp } from 'firebase/app';
-      import { getFirestore, collection, addDoc, getDocs, query, orderBy, deleteDoc, doc, onSnapshot } from 'firebase/firestore';
+      import { getFirestore, collection, addDoc, getDocs, query, orderBy, deleteDoc, doc } from 'firebase/firestore';
 
       // --- FIREBASE CONFIGURATION ---
       // Replace with your actual Firebase project configuration
@@ -121,33 +121,18 @@
       }
 
       // --- GOOGLE SHEETS CONFIG ---
-      
-      /* 
-       * !!! IMPORTANT: GOOGLE APPS SCRIPT SETUP !!!
-       * 
-       * 1. Go to https://script.google.com/
-       * 2. Paste the 'doGet' and 'doPost' code provided in the thought instructions.
-       * 3. Deploy as Web App -> Execute as: "Me" -> Who has access: "Anyone"
-       * 4. Paste the URL below.
-       */
       const GOOGLE_SHEET_URL = 'https://script.google.com/macros/s/AKfycbxJlQ9f4y7ZmBG6kZhZ9sAjPF08_LbOJ32tBSDHhmrglEOX1bYwP6rFJniCdpkvQRI/exec'; 
-
       const APPS_SCRIPT_CODE = `function doPost(e) {
   var lock = LockService.getScriptLock();
   lock.tryLock(10000);
 
   try {
     var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-    
-    // Create headers if sheet is empty
     if (sheet.getLastRow() === 0) {
       sheet.appendRow(["ID", "Customer Name", "Location ID", "Location Name", "Source ID", "Source Label", "Other Details", "Timestamp", "Date", "Time"]);
     }
-
     var data = JSON.parse(e.postData.contents);
     var d = new Date(data.timestamp);
-
-    // Append data
     sheet.appendRow([
       "'"+data.id, 
       data.customerName, 
@@ -160,24 +145,17 @@
       d.toLocaleDateString(), 
       d.toLocaleTimeString()
     ]);
-
-    return ContentService.createTextOutput(JSON.stringify({ "result": "success" }))
-      .setMimeType(ContentService.MimeType.JSON);
-
+    return ContentService.createTextOutput(JSON.stringify({ "result": "success" })).setMimeType(ContentService.MimeType.JSON);
   } catch (e) {
-    return ContentService.createTextOutput(JSON.stringify({ "result": "error", "error": e.toString() }))
-      .setMimeType(ContentService.MimeType.JSON);
+    return ContentService.createTextOutput(JSON.stringify({ "result": "error", "error": e.toString() })).setMimeType(ContentService.MimeType.JSON);
   } finally {
     lock.releaseLock();
   }
 }
-
 function doGet(e) {
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
   var rows = sheet.getDataRange().getValues();
   var data = [];
-  
-  // Start from row index 1 (skip header)
   for (var i = 1; i < rows.length; i++) {
     var row = rows[i];
     data.push({
@@ -191,14 +169,10 @@ function doGet(e) {
       timestamp: row[7]
     });
   }
-  
-  // Return JSON (Reverse to show newest first)
-  return ContentService.createTextOutput(JSON.stringify(data.reverse()))
-    .setMimeType(ContentService.MimeType.JSON);
+  return ContentService.createTextOutput(JSON.stringify(data.reverse())).setMimeType(ContentService.MimeType.JSON);
 }`;
 
       // --- CONSTANTS ---
-
       const FEEDBACK_OPTIONS = [
         { id: 'digital', label: 'Digital Marketing (FB/Insta)', icon: Smartphone, colorClass: 'from-pink-500 to-rose-500' },
         { id: 'hoardings', label: 'Hoardings', icon: Frame, colorClass: 'from-amber-500 to-orange-500' },
@@ -212,49 +186,93 @@ function doGet(e) {
         { id: 'other', label: 'Others', icon: MessageCircle, colorClass: 'from-indigo-500 to-blue-600' },
       ];
 
-      // --- SERVICES ---
+      // --- OPTIMIZED FIREBASE SERVICE (READ REDUCTION) ---
 
       const useLocations = () => {
         const [locations, setLocations] = useState([]);
         const [loading, setLoading] = useState(true);
 
-        useEffect(() => {
+        const CACHE_KEY = 'kasam_locations_data';
+        const CACHE_TIME_KEY = 'kasam_locations_time';
+        const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 Hours in milliseconds
+
+        const fetchLocations = async (forceRefresh = false) => {
           if (!db) {
             setLocations([{ id: 'demo-1', name: 'Demo Location (Firebase Disconnected)' }]);
             setLoading(false);
             return;
           }
 
-          const q = query(collection(db, "locations"), orderBy("name"));
-          const unsubscribe = onSnapshot(q, (snapshot) => {
+          // 1. Try Cache First
+          if (!forceRefresh) {
+            try {
+              const cachedData = localStorage.getItem(CACHE_KEY);
+              const cachedTime = localStorage.getItem(CACHE_TIME_KEY);
+              
+              if (cachedData && cachedTime) {
+                const age = Date.now() - parseInt(cachedTime, 10);
+                if (age < CACHE_DURATION) {
+                  // console.log("Using Cached Locations (0 Reads)");
+                  setLocations(JSON.parse(cachedData));
+                  setLoading(false);
+                  return;
+                }
+              }
+            } catch (e) { console.error("Cache access error", e); }
+          }
+
+          // 2. Fetch from Network if cache invalid or empty
+          try {
+            // console.log("Fetching Locations from Firebase (1 Read)");
+            const q = query(collection(db, "locations"), orderBy("name"));
+            // IMPORTANT: Using getDocs instead of onSnapshot prevents continuous reads
+            const snapshot = await getDocs(q); 
             const locs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            
             setLocations(locs);
+            
+            // 3. Update Cache
+            localStorage.setItem(CACHE_KEY, JSON.stringify(locs));
+            localStorage.setItem(CACHE_TIME_KEY, Date.now().toString());
+          } catch (e) {
+            console.error("Error fetching locations", e);
+          } finally {
             setLoading(false);
-          });
-          return () => unsubscribe();
+          }
+        };
+
+        useEffect(() => {
+          fetchLocations();
         }, []);
 
         const addLocation = async (name) => {
           if (!db) return;
-          try { await addDoc(collection(db, "locations"), { name }); } catch (e) { console.error("Error adding location", e); }
+          try { 
+            await addDoc(collection(db, "locations"), { name });
+            // Force refresh to update UI and Cache immediately
+            fetchLocations(true); 
+          } catch (e) { console.error("Error adding location", e); }
         };
 
         const deleteLocation = async (id) => {
           if (!db) return;
-          try { await deleteDoc(doc(db, "locations", id)); } catch (e) { console.error("Error deleting location", e); }
+          try { 
+            await deleteDoc(doc(db, "locations", id));
+            
+            // Optimistic update for immediate UI response without API call
+            const updatedLocs = locations.filter(l => l.id !== id);
+            setLocations(updatedLocs);
+            localStorage.setItem(CACHE_KEY, JSON.stringify(updatedLocs));
+            localStorage.setItem(CACHE_TIME_KEY, Date.now().toString());
+          } catch (e) { console.error("Error deleting location", e); }
         };
 
         return { locations, loading, addLocation, deleteLocation };
       };
 
       // --- FIXED GOOGLE SHEETS SERVICES ---
-
-      // Writing data: Uses no-cors (opaque) because we just want to send data and not fail on CORS checks
       const saveToGoogleSheet = async (data) => {
         try {
-          // Use 'no-cors' mode for POST to avoid CORS preflight issues on some browsers/GAS setups
-          // Note: We won't know if it truly succeeded based on response status in no-cors, 
-          // but it will submit the data.
           await fetch(GOOGLE_SHEET_URL, {
             method: 'POST',
             mode: 'no-cors', 
@@ -268,28 +286,18 @@ function doGet(e) {
         }
       };
 
-      // Reading data: MUST use standard CORS.
-      // If this fails, it is 99% likely because the Script is not deployed as "Who has access: Anyone"
       const fetchFromGoogleSheet = async () => {
         try {
-          // Add cache busting param
           const url = `${GOOGLE_SHEET_URL}?v=${Date.now()}`;
-          
           const response = await fetch(url, {
             method: 'GET',
-            // Do NOT use 'no-cors' here, or you cannot read the JSON body
             redirect: 'follow' 
           });
-          
-          if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-          }
-          
+          if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
           const data = await response.json();
-          console.log("Fetched data:", data); // Debugging log
           return Array.isArray(data) ? data : [];
         } catch (error) {
-          console.error("Failed to fetch from sheets. CHECK GAS PERMISSIONS (Must be 'Anyone').", error);
+          console.error("Failed to fetch from sheets.", error);
           return [];
         }
       };
@@ -298,9 +306,7 @@ function doGet(e) {
       const generateThankYouMessage = async (sourceLabel) => {
         let apiKey = '';
         try { if (typeof process !== 'undefined' && process.env) apiKey = process.env.API_KEY; } catch(e) {}
-
         if (!apiKey) return "Thank you! Your style is amazing.";
-        
         const ai = new GoogleGenAI({ apiKey });
         try {
           const response = await ai.models.generateContent({
@@ -331,7 +337,6 @@ function doGet(e) {
             ].join(",");
           })
         ].join("\n");
-
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement("a");
         const url = URL.createObjectURL(blob);
@@ -344,20 +349,17 @@ function doGet(e) {
       };
 
       // --- UI COMPONENTS ---
-
       const Logo = ({ className }) => (
- <div className={`flex items-center gap-1 ${className}`}>
-<div className="">
-<img 
- src="https://raw.githubusercontent.com/kasamfashions/Kasamfeedback/afb9ef3d41588301e6a15396d858b92cbdcbf887/LOGO(2)%20(2).png" 
- alt="KASAM FASHIONS Logo" 
-  className="h-8 w-8 object-contain"/>
-</div>
- <div>
- <h2 className="font-bold text-lg serif-font">KASAM FASHIONS</h2>
-</div>
- </div>
- );
+        <div className={`flex items-center gap-1 ${className}`}>
+          <div className="">
+            <img src="https://raw.githubusercontent.com/kasamfashions/Kasamfeedback/afb9ef3d41588301e6a15396d858b92cbdcbf887/LOGO(2)%20(2).png"  alt="KASAM FASHIONS Logo" className="h-8 w-8 object-contain"/>
+          </div>
+          <div>
+            <h2 className="font-bold text-lg serif-font">KASAM FASHIONS</h2>
+          </div>
+        </div>
+      );
+      
       const OptionCard = ({ option, isSelected, onClick }) => {
         const Icon = option.icon;
         return (
@@ -390,12 +392,11 @@ function doGet(e) {
       };
 
       // --- MAIN APPLICATION ---
-
       const App = () => {
-        const [viewMode, setViewMode] = useState('user'); // 'user' | 'admin'
-        const [step, setStep] = useState('location'); // 'location' | 'feedback' | 'success'
+        const [viewMode, setViewMode] = useState('user'); 
+        const [step, setStep] = useState('location'); 
         
-        // Data Hooks
+        // Data Hooks (Uses the optimized useLocations)
         const { locations, addLocation, deleteLocation } = useLocations();
         
         // User Flow State
@@ -419,7 +420,6 @@ function doGet(e) {
         const [copied, setCopied] = useState(false);
 
         // --- HANDLERS ---
-
         const handleFeedbackSubmit = async () => {
           if (!customerName.trim()) { alert("Please enter your name first!"); return; }
           if (!selectedSourceId || !selectedLocationId) return;
@@ -441,13 +441,9 @@ function doGet(e) {
             timestamp: new Date().toISOString()
           };
 
-          // 1. Save to Google Sheets
           await saveToGoogleSheet(submissionData);
-
-          // 2. Generate AI Message
           const msg = await generateThankYouMessage(label);
           setAiMessage(msg);
-          
           setIsSubmitting(false);
           setStep('success');
         };
@@ -481,14 +477,7 @@ function doGet(e) {
           }
         };
 
-        const copyCode = () => {
-          navigator.clipboard.writeText(APPS_SCRIPT_CODE);
-          setCopied(true);
-          setTimeout(() => setCopied(false), 2000);
-        };
-
         // --- COMPUTED DATA ---
-
         const filteredSubmissions = useMemo(() => {
           if (dashboardFilter === 'all') return submissions;
           return submissions.filter(s => s.locationId === dashboardFilter);
@@ -895,7 +884,7 @@ function doGet(e) {
                     )}
                     <div className="flex justify-center mb-8">
                       <button onClick={handleFeedbackSubmit} disabled={!selectedSourceId || isSubmitting || !customerName.trim()} className={`relative group flex items-center justify-center gap-3 px-10 py-4 rounded-full text-lg font-bold shadow-xl transition-all duration-300 ${(!selectedSourceId || !customerName.trim()) ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-gray-900 text-white hover:bg-black hover:scale-105'}`}>
-                        {isSubmitting ? <><Loader2 className="animate-spin" /> Submitting Feedback</> : <>Submit Feedback <ArrowRight size={20} /></>}
+                        {isSubmitting ? <><Loader2 className="animate-spin" /> Syncing to Cloud...</> : <>Submit Feedback <ArrowRight size={20} /></>}
                       </button>
                     </div>
                   </div>
@@ -911,8 +900,3 @@ function doGet(e) {
     </script>
   </body>
 </html>
-
-
-
-
-
