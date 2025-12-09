@@ -86,7 +86,8 @@
         BarChart3, Settings, Smartphone, Frame, Car, Tv, Newspaper, 
         Users, Store, Scroll, Megaphone, MessageCircle, CheckCircle2,
         ChevronDown, Download, Calendar, FileText, LogOut, Home,
-        LayoutDashboard, Trash2, User, MessageSquare, RefreshCw
+        LayoutDashboard, Trash2, User, MessageSquare, RefreshCw,
+        Copy, Check
       } from 'lucide-react';
       import { GoogleGenAI } from "@google/genai";
       import { initializeApp } from 'firebase/app';
@@ -125,7 +126,72 @@
        * 3. Deploy as Web App -> Execute as: "Me" -> Who has access: "Anyone"
        * 4. Paste the URL below.
        */
-      const GOOGLE_SHEET_URL = 'https://script.google.com/macros/s/AKfycbzinYwDibTFOPTeKVwxrQFFjkY2j1vrgzdfhhu4pP0ic5u0TrvHLJJondA_9YLDCjYz/exec'; 
+      const GOOGLE_SHEET_URL = 'https://script.google.com/macros/s/AKfycbxJlQ9f4y7ZmBG6kZhZ9sAjPF08_LbOJ32tBSDHhmrglEOX1bYwP6rFJniCdpkvQRI/exec'; 
+
+      const APPS_SCRIPT_CODE = `function doPost(e) {
+  var lock = LockService.getScriptLock();
+  lock.tryLock(10000);
+
+  try {
+    var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+    
+    // Create headers if sheet is empty
+    if (sheet.getLastRow() === 0) {
+      sheet.appendRow(["ID", "Customer Name", "Location ID", "Location Name", "Source ID", "Source Label", "Other Details", "Timestamp", "Date", "Time"]);
+    }
+
+    var data = JSON.parse(e.postData.contents);
+    var d = new Date(data.timestamp);
+
+    // Append data
+    sheet.appendRow([
+      "'"+data.id, 
+      data.customerName, 
+      data.locationId, 
+      data.locationName, 
+      data.sourceId,
+      data.sourceLabel, 
+      data.otherDetails, 
+      data.timestamp,
+      d.toLocaleDateString(), 
+      d.toLocaleTimeString()
+    ]);
+
+    return ContentService.createTextOutput(JSON.stringify({ "result": "success" }))
+      .setMimeType(ContentService.MimeType.JSON);
+
+  } catch (e) {
+    return ContentService.createTextOutput(JSON.stringify({ "result": "error", "error": e.toString() }))
+      .setMimeType(ContentService.MimeType.JSON);
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function doGet(e) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  var rows = sheet.getDataRange().getValues();
+  var data = [];
+  
+  // Start from row index 1 (skip header)
+  for (var i = 1; i < rows.length; i++) {
+    var row = rows[i];
+    data.push({
+      id: row[0],
+      customerName: row[1],
+      locationId: row[2],
+      locationName: row[3],
+      sourceId: row[4],
+      sourceLabel: row[5],
+      otherDetails: row[6],
+      timestamp: row[7]
+    });
+  }
+  
+  // Return JSON (Reverse to show newest first)
+  return ContentService.createTextOutput(JSON.stringify(data.reverse()))
+    .setMimeType(ContentService.MimeType.JSON);
+}`;
 
       // --- CONSTANTS ---
 
@@ -344,6 +410,7 @@
         const [dashboardFilter, setDashboardFilter] = useState('all');
         const [reportStart, setReportStart] = useState('');
         const [reportEnd, setReportEnd] = useState('');
+        const [copied, setCopied] = useState(false);
 
         // --- HANDLERS ---
 
@@ -406,6 +473,12 @@
           if (window.confirm("This will remove the entry from your view temporarily, but IT WILL REMAIN in your Google Sheet. To delete permanently, please edit the Google Sheet directly.")) {
             setSubmissions(prev => prev.filter(s => s.id !== id));
           }
+        };
+
+        const copyCode = () => {
+          navigator.clipboard.writeText(APPS_SCRIPT_CODE);
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2000);
         };
 
         // --- COMPUTED DATA ---
@@ -483,7 +556,7 @@
                     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
                     { id: 'feedbacks', label: 'Feedbacks', icon: MessageSquare },
                     { id: 'reports', label: 'Reports', icon: FileText },
-                    { id: 'settings', label: 'Locations', icon: Settings },
+                    { id: 'settings', label: 'Settings', icon: Settings },
                   ].map(tab => (
                     <button 
                       key={tab.id}
@@ -537,7 +610,7 @@
                           </div>
                           <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
                              <p className="text-sm text-gray-500 mb-1">Top Source</p>
-                             <p className="text-4xl font-bold truncate text-pink-600">{stats.length > 0 ? stats[0][0] : '-'}</p>
+                             <p className="text-2xl font-bold truncate text-pink-600">{stats.length > 0 ? stats[0][0] : '-'}</p>
                           </div>
                           <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
                              <p className="text-sm text-gray-500 mb-1">Latest Feedback</p>
@@ -622,12 +695,14 @@
                        </div>
                     )}
 
-                    {/* LOCATIONS (FIREBASE) */}
+                    {/* SETTINGS (LOCATIONS & SCRIPT) */}
                     {adminTab === 'settings' && (
-                       <div className="max-w-3xl mx-auto animate-fadeIn">
-                        <div className="bg-white p-6 rounded-2xl shadow-sm border mb-6">
+                       <div className="max-w-4xl mx-auto animate-fadeIn space-y-6">
+                        
+                        {/* Locations Card */}
+                        <div className="bg-white p-6 rounded-2xl shadow-sm border">
                           <h3 className="font-bold text-lg mb-4">Add Store Location</h3>
-                          <div className="flex gap-3">
+                          <div className="flex gap-3 mb-6">
                             <input 
                               type="text" 
                               value={newLocationName} 
@@ -639,31 +714,62 @@
                               Add
                             </button>
                           </div>
-                          <p className="text-xs text-gray-400 mt-2">Stored securely in Firebase Firestore.</p>
+                          <div className="overflow-hidden border rounded-xl">
+                            <table className="w-full text-left">
+                              <thead className="bg-gray-50 border-b">
+                                <tr>
+                                  <th className="p-4 text-sm font-semibold text-gray-600">Location Name</th>
+                                  <th className="p-4 text-sm font-semibold text-gray-600 text-right">Action</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y">
+                                {locations.map(loc => (
+                                  <tr key={loc.id} className="hover:bg-gray-50">
+                                    <td className="p-4 font-medium">{loc.name}</td>
+                                    <td className="p-4 text-right">
+                                      <button onClick={() => deleteLocation(loc.id)} className="text-red-500 hover:text-red-700 hover:bg-red-50 px-3 py-1.5 rounded text-sm transition-colors flex items-center gap-1 ml-auto">
+                                        <Trash2 size={14} /> Remove
+                                      </button>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
                         </div>
 
-                        <div className="bg-white rounded-2xl shadow-sm border overflow-hidden">
-                          <table className="w-full text-left">
-                            <thead className="bg-gray-50 border-b">
-                              <tr>
-                                <th className="p-4 text-sm font-semibold text-gray-600">Location Name</th>
-                                <th className="p-4 text-sm font-semibold text-gray-600 text-right">Action</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y">
-                              {locations.map(loc => (
-                                <tr key={loc.id} className="hover:bg-gray-50">
-                                  <td className="p-4 font-medium">{loc.name}</td>
-                                  <td className="p-4 text-right">
-                                    <button onClick={() => deleteLocation(loc.id)} className="text-red-500 hover:text-red-700 hover:bg-red-50 px-3 py-1.5 rounded text-sm transition-colors flex items-center gap-1 ml-auto">
-                                      <Trash2 size={14} /> Remove
-                                    </button>
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
+                        {/* Google Apps Script Setup Card */}
+                        <div className="bg-white p-6 rounded-2xl shadow-sm border border-blue-100">
+                          <div className="flex items-center justify-between mb-4">
+                            <div>
+                               <h3 className="font-bold text-lg text-blue-900">Google Sheets Connection</h3>
+                               <p className="text-sm text-blue-600">Required for the dashboard to display data.</p>
+                            </div>
+                            <button onClick={copyCode} className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors text-sm font-medium">
+                              {copied ? <Check size={16} /> : <Copy size={16} />}
+                              {copied ? "Copied!" : "Copy Code"}
+                            </button>
+                          </div>
+                          
+                          <div className="bg-slate-900 rounded-xl p-4 overflow-x-auto mb-4 custom-scrollbar max-h-64">
+                            <pre className="text-xs text-blue-300 font-mono whitespace-pre">{APPS_SCRIPT_CODE}</pre>
+                          </div>
+
+                          <div className="text-sm text-gray-600 space-y-2 bg-gray-50 p-4 rounded-xl">
+                            <p className="font-semibold text-gray-800">Deployment Instructions:</p>
+                            <ol className="list-decimal pl-5 space-y-1">
+                              <li>Go to <a href="https://script.google.com" target="_blank" className="text-blue-600 underline">script.google.com</a> and create a new project.</li>
+                              <li>Paste the code above into the editor (replace everything).</li>
+                              <li>Click <strong>Deploy</strong> &rarr; <strong>New Deployment</strong>.</li>
+                              <li>Select type: <strong>Web App</strong>.</li>
+                              <li>Set <strong>Execute as: Me</strong>.</li>
+                              <li>Set <strong>Who has access: Anyone</strong> (Crucial!).</li>
+                              <li>Click Deploy and copy the <strong>Web App URL</strong>.</li>
+                              <li>Paste that URL into the <code>GOOGLE_SHEET_URL</code> variable in your code.</li>
+                            </ol>
+                          </div>
                         </div>
+
                        </div>
                     )}
 
