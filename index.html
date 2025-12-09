@@ -1,0 +1,938 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Kasam Fashion Store Feedback</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+      body {
+        font-family: 'Montserrat', sans-serif;
+      }
+      h1, h2, h3, .serif-font {
+        font-family: 'Playfair Display', serif;
+      }
+      .glass-panel {
+        background: rgba(255, 255, 255, 0.75);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+      }
+      .animate-float {
+        animation: float 6s ease-in-out infinite;
+      }
+      @keyframes float {
+        0% { transform: translateY(0px); }
+        50% { transform: translateY(-10px); }
+        100% { transform: translateY(0px); }
+      }
+      /* Custom Scrollbar for Admin */
+      ::-webkit-scrollbar {
+        width: 8px;
+      }
+      ::-webkit-scrollbar-track {
+        background: #f1f1f1;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #ccc;
+        border-radius: 4px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #999;
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react-dom/client": "https://aistudiocdn.com/react-dom@^19.2.1/client",
+    "react-dom": "https://aistudiocdn.com/react-dom@^19.2.1",
+    "react": "https://aistudiocdn.com/react@^19.2.1",
+    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.556.0",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.31.0",
+    "firebase/app": "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js",
+    "firebase/firestore": "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js"
+  }
+}
+</script>
+</head>
+  <body class="bg-gray-50 text-gray-900">
+    <div id="root"></div>
+
+    <script type="text/babel" data-type="module">
+      import React, { useState, useEffect, useMemo } from 'react';
+      import ReactDOM from 'react-dom/client';
+      import { 
+        Loader2, ShoppingBag, ArrowRight, Lock, MapPin, X, Plus, 
+        BarChart3, Settings, Smartphone, Frame, Car, Tv, Newspaper, 
+        Users, Store, Scroll, Megaphone, MessageCircle, CheckCircle2,
+        ChevronDown, Download, Calendar, FileText, LogOut, Home,
+        LayoutDashboard, Trash2, User, MessageSquare
+      } from 'lucide-react';
+      import { GoogleGenAI } from "@google/genai";
+      import { initializeApp } from 'firebase/app';
+      import { getFirestore, collection, addDoc, getDocs, query, orderBy, deleteDoc, doc } from 'firebase/firestore';
+
+      // --- FIREBASE CONFIGURATION ---
+      // TODO: Replace the values below with your actual Firebase project configuration
+      const firebaseConfig = {
+        apiKey: "AIzaSyBExPCqUUq1Br3CT7m-SRvWYzFRMirCRIU", // e.g., "AIzaSy..."
+        authDomain: "customer-feedback-901f9.firebaseapp.com", // e.g., "your-project.firebaseapp.com"
+        projectId: "customer-feedback-901f9", // e.g., "your-project"
+        storageBucket: "customer-feedback-901f9.firebasestorage.app",
+        messagingSenderId: "375164981290",
+        appId: "1:375164981290:web:f69fe49e1fc18b4e103353",
+        measurementId: "G-7BJZE8R165"
+      };
+
+      // Initialize Firebase (only if config is present)
+      let db = null;
+      if (firebaseConfig.apiKey) {
+        try {
+          const app = initializeApp(firebaseConfig);
+          db = getFirestore(app);
+          console.log("Firebase initialized successfully");
+        } catch (error) {
+          console.error("Firebase initialization failed:", error);
+        }
+      } else {
+        console.warn("Firebase config missing. Using LocalStorage only.");
+      }
+
+      // --- CONSTANTS & CONFIG ---
+
+      const INITIAL_LOCATIONS = [
+        { id: 'nyc-soho', name: 'NYC - SoHo Flagship' },
+        { id: 'la-beverly', name: 'LA - Beverly Hills' },
+        { id: 'miami-design', name: 'Miami - Design District' },
+        { id: 'chicago-mag', name: 'Chicago - Magnificent Mile' },
+      ];
+
+      const FEEDBACK_OPTIONS = [
+        { id: 'digital', label: 'Digital Marketing (FB/Insta)', icon: Smartphone, colorClass: 'from-pink-500 to-rose-500' },
+        { id: 'hoardings', label: 'Hoardings', icon: Frame, colorClass: 'from-amber-500 to-orange-500' },
+        { id: 'auto_ads', label: 'Auto Ads', icon: Car, colorClass: 'from-yellow-400 to-amber-500' },
+        { id: 'cable_tv', label: 'Cable TV Ads', icon: Tv, colorClass: 'from-blue-500 to-cyan-500' },
+        { id: 'pamphlets', label: 'Pamphlets Distribution', icon: Newspaper, colorClass: 'from-green-500 to-emerald-500' },
+        { id: 'friends', label: 'Friends & Relatives', icon: Users, colorClass: 'from-purple-500 to-violet-500' },
+        { id: 'store_view', label: 'Store View / Walk-in', icon: Store, colorClass: 'from-red-500 to-pink-600' },
+        { id: 'paper_inserts', label: 'Paper Inserts', icon: Scroll, colorClass: 'from-slate-500 to-gray-600' },
+        { id: 'street', label: 'Street Activities', icon: Megaphone, colorClass: 'from-teal-500 to-green-500' },
+        { id: 'other', label: 'Others', icon: MessageCircle, colorClass: 'from-indigo-500 to-blue-600' },
+      ];
+
+      const LOCATIONS_KEY = 'fashion_store_locations';
+      const SUBMISSIONS_KEY = 'fashion_store_submissions';
+      
+      /* 
+       * TODO: Paste your Google Apps Script Web App URL here.
+       * 
+       * GOOGLE APPS SCRIPT CODE:
+       * 
+       * function doPost(e) {
+       *   var lock = LockService.getScriptLock();
+       *   lock.tryLock(10000);
+       *   try {
+       *     var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+       *     var data = JSON.parse(e.postData.contents);
+       *     if (sheet.getLastRow() === 0) {
+       *       sheet.appendRow(["ID", "Customer Name", "Location", "Source", "Details", "Date", "Time"]);
+       *     }
+       *     var d = new Date(data.timestamp);
+       *     sheet.appendRow([data.id, data.customerName, data.locationName, data.sourceLabel, data.otherDetails, d.toLocaleDateString(), d.toLocaleTimeString()]);
+       *     return ContentService.createTextOutput(JSON.stringify({ "result": "success" })).setMimeType(ContentService.MimeType.JSON);
+       *   } catch (e) {
+       *     return ContentService.createTextOutput(JSON.stringify({ "result": "error", "error": e })).setMimeType(ContentService.MimeType.JSON);
+       *   } finally {
+       *     lock.releaseLock();
+       *   }
+       * }
+       */
+      const GOOGLE_SHEET_URL = 'https://script.google.com/macros/s/AKfycbzinYwDibTFOPTeKVwxrQFFjkY2j1vrgzdfhhu4pP0ic5u0TrvHLJJondA_9YLDCjYz/exec'; 
+
+      // --- SERVICES ---
+
+      // Storage Service
+      const getLocations = () => {
+        const stored = localStorage.getItem(LOCATIONS_KEY);
+        if (!stored) {
+          localStorage.setItem(LOCATIONS_KEY, JSON.stringify(INITIAL_LOCATIONS));
+          return INITIAL_LOCATIONS;
+        }
+        return JSON.parse(stored);
+      };
+
+      const addLocationToStorage = (name) => {
+        const locations = getLocations();
+        const newLocation = {
+          id: name.toLowerCase().replace(/\s+/g, '-'),
+          name,
+        };
+        const updated = [...locations, newLocation];
+        localStorage.setItem(LOCATIONS_KEY, JSON.stringify(updated));
+        return updated;
+      };
+
+      const deleteLocationFromStorage = (id) => {
+        const locations = getLocations();
+        const updated = locations.filter(l => l.id !== id);
+        localStorage.setItem(LOCATIONS_KEY, JSON.stringify(updated));
+        return updated;
+      };
+
+      // Fetch Submissions (localStorage + Firebase)
+      const fetchSubmissionsData = async () => {
+        let localData = [];
+        try {
+           const stored = localStorage.getItem(SUBMISSIONS_KEY);
+           localData = stored ? JSON.parse(stored) : [];
+        } catch (e) { console.error(e); }
+
+        if (db) {
+          try {
+            const q = query(collection(db, "submissions"), orderBy("timestamp", "desc"));
+            const querySnapshot = await getDocs(q);
+            const firebaseData = querySnapshot.docs.map(doc => ({ ...doc.data(), firebaseId: doc.id }));
+            return firebaseData; // Prioritize Firebase data if available
+          } catch (e) {
+            console.error("Error fetching from Firebase:", e);
+            return localData; // Fallback
+          }
+        }
+        return localData;
+      };
+
+      const saveSubmission = async (submission) => {
+        // 1. Local Storage (Always backup locally)
+        try {
+          const current = localStorage.getItem(SUBMISSIONS_KEY);
+          const parsed = current ? JSON.parse(current) : [];
+          const updated = [submission, ...parsed];
+          localStorage.setItem(SUBMISSIONS_KEY, JSON.stringify(updated));
+        } catch(e) { console.error("Local save failed", e); }
+
+        // 2. Firebase Firestore
+        if (db) {
+          try {
+            await addDoc(collection(db, "submissions"), submission);
+            console.log("Saved to Firestore");
+          } catch (e) {
+            console.error("Error adding document to Firestore: ", e);
+            alert("Note: Saved locally, but failed to sync to cloud. Please check connection.");
+          }
+        }
+
+        // 3. Google Sheets Sync (Optional legacy method)
+        if (GOOGLE_SHEET_URL) {
+          try {
+            await fetch(GOOGLE_SHEET_URL, {
+              method: 'POST',
+              mode: 'no-cors',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(submission),
+            });
+          } catch (e) {
+            console.error("Failed to sync to Google Sheet", e);
+          }
+        }
+      };
+
+      // Gemini Service
+      const generateThankYouMessage = async (sourceLabel) => {
+        // Safe check for process.env in browser environment
+        let apiKey = '';
+        try {
+           if (typeof process !== 'undefined' && process.env) {
+             apiKey = process.env.API_KEY;
+           }
+        } catch(e) { /* ignore */ }
+
+        if (!apiKey) return "Thank you! Your style is amazing.";
+        
+        const ai = new GoogleGenAI({ apiKey });
+        try {
+          const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: `Generate a short, witty, fashion-themed thank you message (max 15 words) for a customer who found our store via "${sourceLabel}".`,
+          });
+          return response.text.trim();
+        } catch (error) {
+          return "Thank you so much! Your impeccable taste led you to the right place.";
+        }
+      };
+
+      // --- COMPONENTS ---
+
+      const OptionCard = ({ option, isSelected, onClick }) => {
+        const Icon = option.icon;
+        return (
+          <button
+            onClick={onClick}
+            className={`
+              relative group overflow-hidden rounded-2xl p-6 transition-all duration-300 ease-out
+              flex flex-col items-center justify-center gap-3 text-center
+              border-2 
+              ${isSelected 
+                ? 'border-transparent shadow-xl scale-105' 
+                : 'border-white/50 hover:border-white hover:shadow-lg hover:-translate-y-1 bg-white/40'
+              }
+            `}
+          >
+            <div className={`absolute inset-0 bg-gradient-to-br ${option.colorClass} transition-opacity duration-300 ${isSelected ? 'opacity-100' : 'opacity-0'}`} />
+            <div className={`relative z-10 transition-colors duration-300 w-full flex flex-col items-center ${isSelected ? 'text-white' : 'text-gray-700'}`}>
+              {/* FIXED UI: Added specific width/height and flex centering to enforce circle shape */}
+              <div className={`w-16 h-16 rounded-full mb-3 flex items-center justify-center shrink-0 transition-all duration-300 ${isSelected ? 'bg-white/20' : 'bg-white/20 group-hover:bg-white'}`}>
+                <Icon size={32} strokeWidth={1.5} />
+              </div>
+              <span className="font-semibold text-sm md:text-base leading-tight break-words max-w-full">{option.label}</span>
+            </div>
+            {isSelected && (
+              <div className="absolute top-3 right-3 text-white animate-bounce">
+                <CheckCircle2 size={20} />
+              </div>
+            )}
+          </button>
+        );
+      };
+
+      // --- MAIN APP ---
+
+      const App = () => {
+        // App View State
+        const [viewMode, setViewMode] = useState('user'); // 'user' | 'admin'
+        
+        // App State
+        const [step, setStep] = useState('location'); // 'location' | 'feedback' | 'success'
+        const [locations, setLocations] = useState([]);
+        const [selectedLocationId, setSelectedLocationId] = useState('');
+        
+        // Feedback State
+        const [customerName, setCustomerName] = useState('');
+        const [selectedSourceId, setSelectedSourceId] = useState(null);
+        const [otherText, setOtherText] = useState('');
+        const [isSubmitting, setIsSubmitting] = useState(false);
+        const [aiMessage, setAiMessage] = useState('');
+
+        // Admin State
+        const [adminPassword, setAdminPassword] = useState('');
+        const [isAuthenticated, setIsAuthenticated] = useState(false);
+        const [adminTab, setAdminTab] = useState('dashboard'); // 'dashboard' | 'settings' | 'reports' | 'feedbacks'
+        const [newLocationName, setNewLocationName] = useState('');
+        const [dashboardFilter, setDashboardFilter] = useState('all');
+        const [submissions, setSubmissions] = useState([]);
+        
+        // Reports State
+        const [reportStart, setReportStart] = useState('');
+        const [reportEnd, setReportEnd] = useState('');
+
+        useEffect(() => {
+          setLocations(getLocations());
+        }, []);
+
+        useEffect(() => {
+          const loadData = async () => {
+            if (viewMode === 'admin' && isAuthenticated) {
+              const data = await fetchSubmissionsData();
+              setSubmissions(data);
+            }
+          };
+          loadData();
+        }, [viewMode, isAuthenticated]);
+
+        const handleNextStep = () => {
+          if (selectedLocationId) {
+            setCustomerName(''); // Reset customer name for new entry
+            setStep('feedback');
+          }
+        };
+
+        const handleFeedbackSubmit = async () => {
+          if (!customerName.trim()) {
+            alert("Please enter your name first!");
+            return;
+          }
+          if (!selectedSourceId || !selectedLocationId) return;
+          setIsSubmitting(true);
+          
+          // Find details
+          const loc = locations.find(l => l.id === selectedLocationId);
+          const opt = FEEDBACK_OPTIONS.find(o => o.id === selectedSourceId);
+          const label = selectedSourceId === 'other' && otherText ? `Other: ${otherText}` : opt?.label || 'Unknown';
+          
+          // Save
+          await saveSubmission({
+            id: Date.now().toString(),
+            customerName: customerName.trim(),
+            sourceId: selectedSourceId,
+            sourceLabel: label,
+            otherDetails: otherText,
+            locationId: selectedLocationId,
+            locationName: loc?.name || 'Unknown',
+            timestamp: new Date().toISOString()
+          });
+
+          // AI Message
+          const msg = await generateThankYouMessage(label);
+          setAiMessage(msg);
+          setIsSubmitting(false);
+          setStep('success');
+        };
+
+        const handleAdminLogin = () => {
+          if (adminPassword === '123456') {
+            setIsAuthenticated(true);
+            setAdminPassword('');
+          } else {
+            alert("Incorrect password");
+          }
+        };
+
+        const handleAddLocation = () => {
+          if (!newLocationName.trim()) return;
+          const updated = addLocationToStorage(newLocationName);
+          setLocations(updated);
+          setNewLocationName('');
+          alert("Location added!");
+        };
+
+        const handleDeleteLocation = (id) => {
+          if (window.confirm("Are you sure you want to delete this location?")) {
+            const updated = deleteLocationFromStorage(id);
+            setLocations(updated);
+            // Reset selection if the deleted location was currently selected
+            if (selectedLocationId === id) {
+              setSelectedLocationId('');
+            }
+          }
+        };
+
+        const handleDeleteSubmission = async (id, firebaseId) => {
+          if (!window.confirm("Are you sure you want to delete this feedback permanently?")) return;
+
+          // 1. Update State
+          const updated = submissions.filter(s => s.id !== id);
+          setSubmissions(updated);
+
+          // 2. Local Storage
+          localStorage.setItem(SUBMISSIONS_KEY, JSON.stringify(updated));
+
+          // 3. Firebase
+          if (db && firebaseId) {
+             try {
+               await deleteDoc(doc(db, "submissions", firebaseId));
+               console.log("Deleted from Firestore");
+             } catch(e) {
+               console.error("Firebase delete error", e);
+               alert("Deleted locally, but could not remove from cloud database.");
+             }
+          }
+        };
+
+        const handleDownloadReports = () => {
+          if (!reportStart || !reportEnd) {
+            alert("Please select both start and end dates.");
+            return;
+          }
+          const start = new Date(reportStart).setHours(0,0,0,0);
+          const end = new Date(reportEnd).setHours(23,59,59,999);
+          
+          const filtered = submissions.filter(s => {
+            const t = new Date(s.timestamp).getTime();
+            return t >= start && t <= end;
+          });
+
+          if (filtered.length === 0) {
+            alert("No data found for the selected period.");
+            return;
+          }
+
+          downloadCSV(filtered);
+        };
+
+        const filteredSubmissions = useMemo(() => {
+          if (dashboardFilter === 'all') return submissions;
+          return submissions.filter(s => s.locationId === dashboardFilter);
+        }, [submissions, dashboardFilter]);
+
+        const stats = useMemo(() => {
+          const s = {};
+          filteredSubmissions.forEach(sub => {
+            s[sub.sourceLabel] = (s[sub.sourceLabel] || 0) + 1;
+          });
+          return Object.entries(s).sort((a, b) => b[1] - a[1]);
+        }, [filteredSubmissions]);
+
+        // --- RENDER: ADMIN VIEW ---
+        
+        if (viewMode === 'admin') {
+          if (!isAuthenticated) {
+            return (
+              <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
+                <div className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md text-center">
+                  <div className="w-16 h-16 bg-black text-white rounded-full flex items-center justify-center mx-auto mb-6">
+                    <Lock size={32} />
+                  </div>
+                  <h2 className="text-2xl font-bold mb-2">Admin Access</h2>
+                  <p className="text-gray-500 mb-6">Please verify your identity to continue.</p>
+                  <input 
+                    type="password" 
+                    value={adminPassword} 
+                    onChange={e => setAdminPassword(e.target.value)} 
+                    placeholder="Enter Password"
+                    className="w-full px-4 py-3 rounded-lg border-2 border-gray-200 mb-4 text-center focus:border-black outline-none transition-colors"
+                    onKeyDown={e => e.key === 'Enter' && handleAdminLogin()}
+                  />
+                  <div className="flex gap-3">
+                    <button onClick={() => setViewMode('user')} className="flex-1 py-3 text-gray-500 hover:bg-gray-100 rounded-lg">Cancel</button>
+                    <button onClick={handleAdminLogin} className="flex-1 py-3 bg-black text-white rounded-lg hover:bg-gray-800">Login</button>
+                  </div>
+                </div>
+              </div>
+            );
+          }
+
+          return (
+            <div className="min-h-screen bg-gray-100 flex flex-col md:flex-row font-sans text-gray-800">
+              {/* Sidebar */}
+              <aside className="w-full md:w-64 bg-white border-r shadow-sm flex-none z-10">
+                <div className="p-6 border-b flex items-center justify-between">
+                   <h1 className="text-xl font-bold tracking-tight">Admin Panel</h1>
+                   <button onClick={() => setViewMode('user')} className="md:hidden p-2 text-gray-500"><X size={20} /></button>
+                </div>
+                <nav className="p-4 space-y-2">
+                  <button 
+                    onClick={() => setAdminTab('dashboard')}
+                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${adminTab === 'dashboard' ? 'bg-black text-white' : 'text-gray-600 hover:bg-gray-100'}`}
+                  >
+                    <LayoutDashboard size={18} /> Dashboard
+                  </button>
+                  <button 
+                    onClick={() => setAdminTab('feedbacks')}
+                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${adminTab === 'feedbacks' ? 'bg-black text-white' : 'text-gray-600 hover:bg-gray-100'}`}
+                  >
+                    <MessageSquare size={18} /> Feedbacks
+                  </button>
+                  <button 
+                    onClick={() => setAdminTab('settings')}
+                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${adminTab === 'settings' ? 'bg-black text-white' : 'text-gray-600 hover:bg-gray-100'}`}
+                  >
+                    <Settings size={18} /> Locations
+                  </button>
+                  <button 
+                    onClick={() => setAdminTab('reports')}
+                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${adminTab === 'reports' ? 'bg-black text-white' : 'text-gray-600 hover:bg-gray-100'}`}
+                  >
+                    <FileText size={18} /> Reports
+                  </button>
+                </nav>
+                <div className="p-4 mt-auto border-t">
+                  <button onClick={() => { setIsAuthenticated(false); setViewMode('user'); }} className="w-full flex items-center gap-2 text-gray-500 hover:text-red-600 px-4 py-2">
+                    <LogOut size={16} /> Logout
+                  </button>
+                </div>
+              </aside>
+
+              {/* Main Content */}
+              <main className="flex-1 overflow-y-auto p-4 md:p-8">
+                
+                {/* DASHBOARD TAB */}
+                {adminTab === 'dashboard' && (
+                  <div className="max-w-5xl mx-auto animate-fadeIn">
+                    <header className="flex justify-between items-center mb-8">
+                      <div>
+                         <h2 className="text-2xl font-bold">Analytics Overview</h2>
+                         <p className="text-gray-500">Track customer feedback sources</p>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <select value={dashboardFilter} onChange={e => setDashboardFilter(e.target.value)} className="bg-white border rounded-lg px-4 py-2 shadow-sm text-sm">
+                          <option value="all">All Locations</option>
+                          {locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+                        </select>
+                      </div>
+                    </header>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                      <div className="bg-white p-6 rounded-2xl shadow-sm border">
+                         <p className="text-sm text-gray-500 mb-1">Total Feedbacks</p>
+                         <p className="text-3xl font-bold">{filteredSubmissions.length}</p>
+                      </div>
+                      <div className="bg-white p-6 rounded-2xl shadow-sm border">
+                         <p className="text-sm text-gray-500 mb-1">Top Source</p>
+                         <p className="text-3xl font-bold truncate">{stats.length > 0 ? stats[0][0] : '-'}</p>
+                      </div>
+                      <div className="bg-white p-6 rounded-2xl shadow-sm border">
+                         <p className="text-sm text-gray-500 mb-1">Active Location</p>
+                         <p className="text-3xl font-bold truncate">{dashboardFilter === 'all' ? 'All' : locations.find(l => l.id === dashboardFilter)?.name}</p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                      <div className="bg-white p-6 rounded-2xl shadow-sm border">
+                        <h3 className="font-bold text-lg mb-6 flex items-center gap-2"><BarChart3 size={20} /> Source Breakdown</h3>
+                        <div className="space-y-4">
+                          {stats.map(([label, count]) => (
+                            <div key={label}>
+                              <div className="flex justify-between text-sm mb-2 font-medium">
+                                <span>{label}</span>
+                                <span className="text-gray-600">{count} ({Math.round((count / filteredSubmissions.length) * 100)}%)</span>
+                              </div>
+                              <div className="w-full bg-gray-100 rounded-full h-3">
+                                <div className="bg-black h-3 rounded-full" style={{ width: `${(count / filteredSubmissions.length) * 100}%` }}></div>
+                              </div>
+                            </div>
+                          ))}
+                          {stats.length === 0 && <p className="text-gray-400 text-center py-4">No data available.</p>}
+                        </div>
+                      </div>
+
+                      <div className="bg-white p-6 rounded-2xl shadow-sm border flex flex-col h-[500px]">
+                        <h3 className="font-bold text-lg mb-6">Recent Activity</h3>
+                        <div className="flex-1 overflow-y-auto pr-2 space-y-3">
+                          {filteredSubmissions.slice(0, 20).map((sub, i) => (
+                            <div key={i} className="p-4 bg-gray-50 rounded-xl border hover:border-gray-300 transition-colors flex justify-between items-center group">
+                              <div>
+                                <div className="flex justify-between items-start mb-2">
+                                  <span className="font-bold text-gray-900">{sub.customerName || 'Anonymous'}</span>
+                                  <span className="text-xs text-gray-500 ml-2">{new Date(sub.timestamp).toLocaleDateString()}</span>
+                                </div>
+                                <div className="flex items-center gap-2 text-xs text-gray-600 mb-2">
+                                  <MapPin size={12} /> {sub.locationName} &bull; <span className="font-medium text-black">{sub.sourceLabel}</span>
+                                </div>
+                                {sub.otherDetails && (
+                                  <div className="text-sm text-indigo-600 bg-indigo-50 p-2 rounded-lg mt-1 italic">
+                                    "{sub.otherDetails}"
+                                  </div>
+                                )}
+                              </div>
+                              <button 
+                                onClick={() => handleDeleteSubmission(sub.id, sub.firebaseId)}
+                                className="text-gray-300 hover:text-red-500 hover:bg-red-50 p-2 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                                title="Delete"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </div>
+                          ))}
+                          {filteredSubmissions.length === 0 && <p className="text-gray-400 text-center py-4">No recent activity.</p>}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* FEEDBACKS MANAGEMENT TAB */}
+                {adminTab === 'feedbacks' && (
+                  <div className="max-w-5xl mx-auto animate-fadeIn">
+                     <header className="flex justify-between items-center mb-8">
+                      <div>
+                         <h2 className="text-2xl font-bold">Manage Feedbacks</h2>
+                         <p className="text-gray-500">View and delete customer submissions</p>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <select value={dashboardFilter} onChange={e => setDashboardFilter(e.target.value)} className="bg-white border rounded-lg px-4 py-2 shadow-sm text-sm">
+                          <option value="all">All Locations</option>
+                          {locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+                        </select>
+                      </div>
+                    </header>
+
+                    <div className="bg-white rounded-2xl shadow-sm border overflow-hidden">
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-left border-collapse">
+                          <thead className="bg-gray-50 border-b">
+                            <tr>
+                              <th className="p-4 font-semibold text-gray-600 text-sm">Date</th>
+                              <th className="p-4 font-semibold text-gray-600 text-sm">Customer</th>
+                              <th className="p-4 font-semibold text-gray-600 text-sm">Location</th>
+                              <th className="p-4 font-semibold text-gray-600 text-sm">Source</th>
+                              <th className="p-4 font-semibold text-gray-600 text-sm">Details</th>
+                              <th className="p-4 font-semibold text-gray-600 text-sm text-right">Action</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y">
+                            {filteredSubmissions.map(sub => (
+                              <tr key={sub.id} className="hover:bg-gray-50">
+                                <td className="p-4 text-sm whitespace-nowrap text-gray-500">
+                                  {new Date(sub.timestamp).toLocaleDateString()}
+                                  <div className="text-xs text-gray-400">{new Date(sub.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
+                                </td>
+                                <td className="p-4 font-medium">{sub.customerName || 'Anonymous'}</td>
+                                <td className="p-4 text-sm">{sub.locationName}</td>
+                                <td className="p-4 text-sm">
+                                  <span className="inline-block px-2 py-1 bg-gray-100 rounded text-xs font-semibold">{sub.sourceLabel}</span>
+                                </td>
+                                <td className="p-4 text-sm text-gray-600 max-w-xs truncate">{sub.otherDetails || '-'}</td>
+                                <td className="p-4 text-right">
+                                  <button 
+                                    onClick={() => handleDeleteSubmission(sub.id, sub.firebaseId)}
+                                    className="text-gray-400 hover:text-red-600 hover:bg-red-50 p-2 rounded-lg transition-colors"
+                                    title="Delete Submission"
+                                  >
+                                    <Trash2 size={18} />
+                                  </button>
+                                </td>
+                              </tr>
+                            ))}
+                            {filteredSubmissions.length === 0 && (
+                              <tr>
+                                <td colSpan="6" className="p-8 text-center text-gray-400">No feedbacks found.</td>
+                              </tr>
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* LOCATIONS TAB */}
+                {adminTab === 'settings' && (
+                  <div className="max-w-3xl mx-auto animate-fadeIn">
+                    <h2 className="text-2xl font-bold mb-2">Location Management</h2>
+                    <p className="text-gray-500 mb-8">Add or remove store locations from the selection list.</p>
+
+                    <div className="bg-white p-6 rounded-2xl shadow-sm border mb-8">
+                      <label className="block text-sm font-medium mb-2">Add New Location</label>
+                      <div className="flex gap-3">
+                        <input 
+                          type="text" 
+                          value={newLocationName} 
+                          onChange={e => setNewLocationName(e.target.value)} 
+                          placeholder="e.g. Austin - Domain" 
+                          className="flex-1 border rounded-xl px-4 py-3 focus:ring-2 focus:ring-black focus:outline-none"
+                        />
+                        <button onClick={handleAddLocation} className="bg-black text-white px-6 py-3 rounded-xl font-medium hover:bg-gray-800 transition-colors flex items-center gap-2">
+                          <Plus size={20} /> Add
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="bg-white rounded-2xl shadow-sm border overflow-hidden">
+                      <table className="w-full text-left border-collapse">
+                        <thead className="bg-gray-50 border-b">
+                          <tr>
+                            <th className="p-4 font-semibold text-gray-600 text-sm">Location Name</th>
+                            <th className="p-4 font-semibold text-gray-600 text-sm">ID</th>
+                            <th className="p-4 font-semibold text-gray-600 text-sm text-right">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y">
+                          {locations.map(loc => (
+                            <tr key={loc.id} className="hover:bg-gray-50">
+                              <td className="p-4 font-medium">{loc.name}</td>
+                              <td className="p-4 text-sm text-gray-500 font-mono">{loc.id}</td>
+                              <td className="p-4 text-right">
+                                <button 
+                                  onClick={() => handleDeleteLocation(loc.id)}
+                                  className="text-sm text-red-500 hover:text-red-700 hover:bg-red-50 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1 ml-auto"
+                                >
+                                  <Trash2 size={16} /> Remove
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                {/* REPORTS TAB */}
+                {adminTab === 'reports' && (
+                  <div className="max-w-3xl mx-auto animate-fadeIn">
+                    <h2 className="text-2xl font-bold mb-2">Data Reports</h2>
+                    <p className="text-gray-500 mb-8">Export feedback data for analysis.</p>
+
+                    <div className="bg-white p-8 rounded-2xl shadow-sm border mb-8">
+                      <div className="flex items-start gap-4 mb-6">
+                        <div className="p-3 bg-green-100 text-green-700 rounded-xl">
+                          <FileText size={24} />
+                        </div>
+                        <div>
+                          <h3 className="font-bold text-lg">Export CSV</h3>
+                          <p className="text-gray-500 text-sm">Download all feedback submissions within a specific date range.</p>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                        <div>
+                          <label className="block text-sm font-semibold mb-2 text-gray-700">Start Date</label>
+                          <div className="relative">
+                            <input 
+                              type="date" 
+                              value={reportStart}
+                              onChange={e => setReportStart(e.target.value)}
+                              className="w-full border rounded-xl px-4 py-3 focus:ring-2 focus:ring-black focus:outline-none"
+                            />
+                            <Calendar className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={18} />
+                          </div>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-semibold mb-2 text-gray-700">End Date</label>
+                          <div className="relative">
+                            <input 
+                              type="date" 
+                              value={reportEnd}
+                              onChange={e => setReportEnd(e.target.value)}
+                              className="w-full border rounded-xl px-4 py-3 focus:ring-2 focus:ring-black focus:outline-none"
+                            />
+                            <Calendar className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={18} />
+                          </div>
+                        </div>
+                      </div>
+
+                      <button 
+                        onClick={handleDownloadReports}
+                        className="w-full bg-black text-white py-4 rounded-xl font-bold hover:bg-gray-900 transition-all flex items-center justify-center gap-2"
+                      >
+                        <Download size={20} /> Download CSV Report
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+              </main>
+            </div>
+          );
+        }
+
+        // --- RENDER: USER VIEW (EXISTING FLOW) ---
+        
+        if (step === 'success') {
+          return (
+            <div className="min-h-screen relative overflow-hidden bg-cover bg-center flex items-center justify-center p-4"
+                 style={{ backgroundImage: 'url("https://images.unsplash.com/photo-1490481651871-ab68de25d43d?q=80&w=2070&auto=format&fit=crop")' }}>
+              <div className="absolute inset-0 bg-black/40 backdrop-blur-sm"></div>
+              <div className="glass-panel max-w-lg w-full rounded-3xl p-10 text-center relative z-10 animate-float shadow-2xl">
+                <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6 text-green-600">
+                   <ShoppingBag size={40} />
+                </div>
+                <h2 className="text-3xl md:text-4xl font-bold mb-4 text-gray-800 serif-font">Thank You!</h2>
+                <div className="h-1 w-20 bg-pink-500 mx-auto mb-6 rounded-full"></div>
+                <p className="text-xl text-gray-700 italic font-medium leading-relaxed mb-8">"{aiMessage}"</p>
+                <button onClick={() => { setStep('location'); setSelectedSourceId(null); setOtherText(''); }} className="text-sm text-black hover:text-black-200 underline">Return to Home</button>
+              </div>
+            </div>
+          );
+        }
+
+        return (
+          <div className="min-h-screen relative bg-gray-50 font-sans">
+            {/* Background Decor */}
+            <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none">
+              <div className="absolute -top-[10%] -right-[10%] w-[50vw] h-[50vw] bg-pink-200/40 rounded-full blur-3xl mix-blend-multiply filter opacity-70 animate-blob"></div>
+              <div className="absolute top-[20%] -left-[10%] w-[50vw] h-[50vw] bg-purple-200/40 rounded-full blur-3xl mix-blend-multiply filter opacity-70 animate-blob animation-delay-2000"></div>
+              <div className="absolute -bottom-[10%] left-[20%] w-[50vw] h-[50vw] bg-yellow-200/40 rounded-full blur-3xl mix-blend-multiply filter opacity-70 animate-blob animation-delay-4000"></div>
+            </div>
+
+            {/* Admin Button */}
+            <div className="fixed top-4 right-4 z-50">
+              <button onClick={() => setViewMode('admin')} className="p-3 bg-white/20 hover:bg-white/40 backdrop-blur-md rounded-full text-gray-700 hover:text-gray-900 transition-all border border-white/30 shadow-lg">
+                <Lock size={20} />
+              </button>
+            </div>
+
+            <div className="relative z-10 container mx-auto px-4 py-8 md:py-12 max-w-6xl min-h-screen flex flex-col">
+              <header className="text-center mb-10 flex-none">
+                <div className="inline-block p-3 rounded-full bg-white/80 shadow-sm mb-4 backdrop-blur-sm">
+                  <span className="text-xs font-bold tracking-widest text-pink-600 uppercase px-2">
+                    {step === 'location' ? 'Welcome, Kasam Fashions Private Limited' : locations.find(l => l.id === selectedLocationId)?.name}
+                  </span>
+                </div>
+                <h1 className="text-4xl md:text-6xl font-bold text-gray-900 serif-font mt-4 leading-tight">
+                  {step === 'location' ? (
+                    <>Select Your <span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-600 to-purple-600">Store Location</span></>
+                  ) : (
+                    <>We value your <span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-600 to-purple-600">Feedback</span></>
+                  )}
+                </h1>
+              </header>
+
+              {step === 'location' && (
+                <div className="flex-1 flex flex-col items-center justify-center animate-fadeIn">
+                  <div className="w-full max-w-md bg-white/30 backdrop-blur-lg border border-white/50 rounded-3xl p-8 shadow-2xl">
+                    <label className="block text-gray-700 font-semibold mb-4 text-center">Choose Location to submit the Feedback</label>
+                    
+                    <div className="relative mb-8">
+                      <select 
+                        value={selectedLocationId}
+                        onChange={(e) => setSelectedLocationId(e.target.value)}
+                        className="w-full appearance-none bg-white/60 border border-white rounded-xl px-6 py-4 text-lg text-gray-800 shadow-sm focus:outline-none focus:ring-4 focus:ring-pink-200 transition-all cursor-pointer"
+                      >
+                        <option value="" disabled>Select a location...</option>
+                        {locations.map(loc => (
+                          <option key={loc.id} value={loc.id}>{loc.name}</option>
+                        ))}
+                      </select>
+                      <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-gray-500">
+                        <ChevronDown size={24} />
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={handleNextStep}
+                      disabled={!selectedLocationId}
+                      className={`w-full py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 transition-all duration-300 ${selectedLocationId ? 'bg-black text-white hover:scale-[1.02] shadow-xl' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`}
+                    >
+                      Continue <ArrowRight size={20} />
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {step === 'feedback' && (
+                <div className="flex-1 animate-slideUp">
+                   <button onClick={() => setStep('location')} className="mb-6 flex items-center gap-2 text-gray-500 hover:text-gray-900 transition-colors mx-auto md:mx-0">
+                    <ArrowRight className="rotate-180" size={16} /> Change Location
+                  </button>
+                  
+                  {/* Customer Name Input */}
+                  <div className="max-w-xl mx-auto mb-8">
+                    <div className="relative">
+                      <input 
+                        type="text" 
+                        value={customerName} 
+                        onChange={(e) => setCustomerName(e.target.value)} 
+                        placeholder="Enter your Name" 
+                        className="w-full pl-12 pr-5 py-4 rounded-xl border-2 border-white/50 bg-white/40 backdrop-blur-md focus:border-pink-500 focus:bg-white/80 outline-none transition-all shadow-sm text-lg placeholder-gray-500" 
+                        autoFocus 
+                      />
+                      <User className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={24} />
+                    </div>
+                  </div>
+
+                  {/* Heading added as requested */}
+                  <h3 className="text-2xl font-bold text-center mb-8 mt-2 serif-font text-gray-800">
+                    <>How did you hear <span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-600 to-purple-600">about us?</span></>
+                  </h3>
+
+                  <div className={`transition-all duration-500 ${!customerName.trim() ? 'opacity-50 pointer-events-none grayscale' : 'opacity-100'}`}>
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6 mb-12">
+                      {FEEDBACK_OPTIONS.map((option) => (
+                        <OptionCard key={option.id} option={option} isSelected={selectedSourceId === option.id} onClick={() => setSelectedSourceId(option.id)} />
+                      ))}
+                    </div>
+                    {selectedSourceId === 'other' && (
+                      <div className="max-w-xl mx-auto mb-10">
+                        <input type="text" value={otherText} onChange={(e) => setOtherText(e.target.value)} placeholder="Please specify..." className="w-full px-5 py-4 rounded-xl border-2 border-indigo-100 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 outline-none transition-all shadow-sm text-lg" autoFocus />
+                      </div>
+                    )}
+                    <div className="flex justify-center mb-8">
+                      <button onClick={handleFeedbackSubmit} disabled={!selectedSourceId || isSubmitting || !customerName.trim()} className={`relative group flex items-center justify-center gap-3 px-10 py-4 rounded-full text-lg font-bold shadow-xl transition-all duration-300 ${(!selectedSourceId || !customerName.trim()) ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-gray-900 text-white hover:bg-black hover:scale-105'}`}>
+                        {isSubmitting ? <><Loader2 className="animate-spin" /> Processing...</> : <>Submit Feedback <ArrowRight size={20} /></>}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      };
+
+      const root = ReactDOM.createRoot(document.getElementById('root'));
+      root.render(<App />);
+    </script>
+  </body>
+</html>
