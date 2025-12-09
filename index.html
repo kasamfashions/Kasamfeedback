@@ -46,6 +46,20 @@
       .animation-delay-4000 {
         animation-delay: 4s;
       }
+      /* Custom Scrollbar for admin panels */
+      .custom-scrollbar::-webkit-scrollbar {
+        width: 6px;
+      }
+      .custom-scrollbar::-webkit-scrollbar-track {
+        background: #f1f1f1; 
+      }
+      .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: #d1d5db; 
+        border-radius: 4px;
+      }
+      .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+        background: #9ca3af; 
+      }
     </style>
   <script type="importmap">
 {
@@ -104,64 +118,12 @@
       // --- GOOGLE SHEETS CONFIG ---
       
       /* 
-       * !!! IMPORTANT: GOOGLE APPS SCRIPT UPDATE REQUIRED !!!
+       * !!! IMPORTANT: GOOGLE APPS SCRIPT SETUP !!!
        * 
-       * You must update your Google Apps Script to handle 'doGet' (for reading data)
-       * and 'doPost' (for saving data). Copy/Paste the code below into script.google.com:
-       * 
-       * function doPost(e) {
-       *   var lock = LockService.getScriptLock();
-       *   lock.tryLock(10000);
-       *   try {
-       *     var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-       *     var data = JSON.parse(e.postData.contents);
-       *     if (sheet.getLastRow() === 0) {
-       *       sheet.appendRow(["ID", "Customer Name", "Location ID", "Location Name", "Source ID", "Source Label", "Other Details", "Timestamp", "Date", "Time"]);
-       *     }
-       *     var d = new Date(data.timestamp);
-       *     sheet.appendRow([
-       *       data.id, 
-       *       data.customerName, 
-       *       data.locationId, 
-       *       data.locationName, 
-       *       data.sourceId,
-       *       data.sourceLabel, 
-       *       data.otherDetails, 
-       *       data.timestamp,
-       *       d.toLocaleDateString(), 
-       *       d.toLocaleTimeString()
-       *     ]);
-       *     return ContentService.createTextOutput(JSON.stringify({ "result": "success" })).setMimeType(ContentService.MimeType.JSON);
-       *   } catch (e) {
-       *     return ContentService.createTextOutput(JSON.stringify({ "result": "error", "error": e.toString() })).setMimeType(ContentService.MimeType.JSON);
-       *   } finally {
-       *     lock.releaseLock();
-       *   }
-       * }
-       * 
-       * function doGet(e) {
-       *   var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-       *   var rows = sheet.getDataRange().getValues();
-       *   var headers = rows[0];
-       *   var data = [];
-       *   // Simple array mapping, assuming header row 1 exists
-       *   for (var i = 1; i < rows.length; i++) {
-       *     var row = rows[i];
-       *     var obj = {};
-       *     // Map columns: ID=0, Name=1, LocID=2, LocName=3, SourceID=4, SourceLabel=5, Details=6, TS=7
-       *     obj.id = row[0];
-       *     obj.customerName = row[1];
-       *     obj.locationId = row[2];
-       *     obj.locationName = row[3];
-       *     obj.sourceId = row[4];
-       *     obj.sourceLabel = row[5];
-       *     obj.otherDetails = row[6];
-       *     obj.timestamp = row[7];
-       *     data.push(obj);
-       *   }
-       *   // Return reverse order (newest first)
-       *   return ContentService.createTextOutput(JSON.stringify(data.reverse())).setMimeType(ContentService.MimeType.JSON);
-       * }
+       * 1. Go to https://script.google.com/
+       * 2. Paste the 'doGet' and 'doPost' code provided in the thought instructions.
+       * 3. Deploy as Web App -> Execute as: "Me" -> Who has access: "Anyone"
+       * 4. Paste the URL below.
        */
       const GOOGLE_SHEET_URL = 'https://script.google.com/macros/s/AKfycbzinYwDibTFOPTeKVwxrQFFjkY2j1vrgzdfhhu4pP0ic5u0TrvHLJJondA_9YLDCjYz/exec'; 
 
@@ -182,18 +144,13 @@
 
       // --- SERVICES ---
 
-      // 1. Locations Service (Firebase)
-      // We now strictly use Firebase for locations to keep config centralized.
       const useLocations = () => {
         const [locations, setLocations] = useState([]);
         const [loading, setLoading] = useState(true);
 
         useEffect(() => {
           if (!db) {
-            // Fallback for demo/no-wifi
-            setLocations([
-              { id: 'demo-1', name: 'Demo Location (Firebase Disconnected)' },
-            ]);
+            setLocations([{ id: 'demo-1', name: 'Demo Location (Firebase Disconnected)' }]);
             setLoading(false);
             return;
           }
@@ -209,32 +166,31 @@
 
         const addLocation = async (name) => {
           if (!db) return;
-          try {
-            await addDoc(collection(db, "locations"), { name });
-          } catch (e) { console.error("Error adding location", e); }
+          try { await addDoc(collection(db, "locations"), { name }); } catch (e) { console.error("Error adding location", e); }
         };
 
         const deleteLocation = async (id) => {
           if (!db) return;
-          try {
-            await deleteDoc(doc(db, "locations", id));
-          } catch (e) { console.error("Error deleting location", e); }
+          try { await deleteDoc(doc(db, "locations", id)); } catch (e) { console.error("Error deleting location", e); }
         };
 
         return { locations, loading, addLocation, deleteLocation };
       };
 
-      // 2. Submission Service (Google Sheets ONLY)
+      // --- FIXED GOOGLE SHEETS SERVICES ---
+
+      // Writing data: Uses no-cors (opaque) because we just want to send data and not fail on CORS checks
       const saveToGoogleSheet = async (data) => {
         try {
-          // Use text/plain to avoid CORS preflight checks which GAS often fails
-          const response = await fetch(GOOGLE_SHEET_URL, {
+          // Use 'no-cors' mode for POST to avoid CORS preflight issues on some browsers/GAS setups
+          // Note: We won't know if it truly succeeded based on response status in no-cors, 
+          // but it will submit the data.
+          await fetch(GOOGLE_SHEET_URL, {
             method: 'POST',
-            mode: 'no-cors',
-            headers: { 'Content-Type': 'text/plain' },
+            mode: 'no-cors', 
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data),
           });
-          // Since mode is no-cors, we can't check response.ok. We assume success if no network error.
           return true;
         } catch (error) {
           console.error("Sheet sync failed", error);
@@ -242,23 +198,28 @@
         }
       };
 
+      // Reading data: MUST use standard CORS.
+      // If this fails, it is 99% likely because the Script is not deployed as "Who has access: Anyone"
       const fetchFromGoogleSheet = async () => {
         try {
-          // Add timestamp to bypass browser cache and ensure fresh data
-          // This fixes many "NetworkError" issues caused by stale CORS headers
+          // Add cache busting param
           const url = `${GOOGLE_SHEET_URL}?v=${Date.now()}`;
-          const response = await fetch(url);
+          
+          const response = await fetch(url, {
+            method: 'GET',
+            // Do NOT use 'no-cors' here, or you cannot read the JSON body
+            redirect: 'follow' 
+          });
           
           if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
           }
           
           const data = await response.json();
-          // The Apps Script returns { result: ... } or array. 
+          console.log("Fetched data:", data); // Debugging log
           return Array.isArray(data) ? data : [];
         } catch (error) {
-          console.error("Failed to fetch from sheets", error);
-          // Return empty array instead of crashing
+          console.error("Failed to fetch from sheets. CHECK GAS PERMISSIONS (Must be 'Anyone').", error);
           return [];
         }
       };
@@ -419,6 +380,7 @@
         };
 
         const loadAdminData = async () => {
+          if (!isAuthenticated) return;
           setIsLoadingSubmissions(true);
           const data = await fetchFromGoogleSheet();
           setSubmissions(data);
@@ -598,7 +560,7 @@
                                   </div>
                                 </div>
                               ))}
-                              {stats.length === 0 && <p className="text-gray-400 text-center py-4">No data available.</p>}
+                              {stats.length === 0 && <p className="text-gray-400 text-center py-4">No data available. Check Sheet Permissions.</p>}
                             </div>
                           </div>
                            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col">
@@ -653,7 +615,7 @@
                                     </td>
                                   </tr>
                                 ))}
-                                {filteredSubmissions.length === 0 && <tr><td colSpan="6" className="p-8 text-center text-gray-400">No data found.</td></tr>}
+                                {filteredSubmissions.length === 0 && <tr><td colSpan="6" className="p-8 text-center text-gray-400">No data found. Check Google Apps Script Deployment (Access: Anyone).</td></tr>}
                               </tbody>
                             </table>
                           </div>
