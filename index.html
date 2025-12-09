@@ -4,13 +4,11 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Kasam Fashion Store Feedback</title>
-    <!-- Favicon -->
     <link 
-  rel="icon" 
-  type="image/png" 
-  href="https://raw.githubusercontent.com/kasamfashions/Kasamfeedback/2f0b8e0d7cd18cafa3aec383b55d6d884258d293/Feedback.png"  
-/>
-    
+      rel="icon" 
+      type="image/png" 
+      href="https://raw.githubusercontent.com/kasamfashions/Kasamfeedback/2f0b8e0d7cd18cafa3aec383b55d6d884258d293/Feedback.png"  
+    />
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
@@ -50,7 +48,6 @@
       .animation-delay-4000 {
         animation-delay: 4s;
       }
-      /* Custom Scrollbar for admin panels */
       .custom-scrollbar::-webkit-scrollbar {
         width: 6px;
       }
@@ -65,20 +62,22 @@
         background: #9ca3af; 
       }
     </style>
-  <script type="importmap">
+    <script type="importmap">
 {
   "imports": {
-    "react-dom/client": "https://aistudiocdn.com/react-dom@^19.2.1/client",
-    "react-dom": "https://aistudiocdn.com/react-dom@^19.2.1",
     "react": "https://aistudiocdn.com/react@^19.2.1",
+    "react-dom/client": "https://aistudiocdn.com/react-dom@^19.2.1/client",
     "lucide-react": "https://aistudiocdn.com/lucide-react@^0.556.0",
-    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.31.0",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.32.0",
     "firebase/app": "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js",
-    "firebase/firestore": "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js"
+    "firebase/firestore": "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.1/",
+    "react/": "https://aistudiocdn.com/react@^19.2.1/",
+    "firebase/": "https://aistudiocdn.com/firebase@^12.6.0/"
   }
 }
 </script>
-</head>
+  </head>
   <body class="bg-gray-50 text-gray-900">
     <div id="root"></div>
 
@@ -86,20 +85,20 @@
       import React, { useState, useEffect, useMemo } from 'react';
       import ReactDOM from 'react-dom/client';
       import { 
-        Loader2, ShoppingBag, ArrowRight, Lock, MapPin, X, Plus, 
-        BarChart3, Settings, Smartphone, Frame, Car, Tv, Newspaper, 
-        Users, Store, Scroll, Megaphone, MessageCircle, CheckCircle2,
-        ChevronDown, Download, Calendar, FileText, LogOut, Home,
-        LayoutDashboard, Trash2, User, MessageSquare, RefreshCw,
-        Copy, Check
+        Loader2, ShoppingBag, ArrowRight, Lock, User, ChevronDown, 
+        CheckCircle2, LayoutDashboard, MessageSquare, FileText, 
+        Settings, LogOut, RefreshCw, BarChart3, Trash2, Download, X,
+        Phone
       } from 'lucide-react';
       import { GoogleGenAI } from "@google/genai";
       import { initializeApp } from 'firebase/app';
       import { getFirestore, collection, addDoc, getDocs, query, orderBy, deleteDoc, doc } from 'firebase/firestore';
 
-      // --- FIREBASE CONFIGURATION ---
-      // Replace with your actual Firebase project configuration
-      const firebaseConfig = {
+      // --- TYPES ---
+      // (Types are elided at runtime but kept here for clarity in structure)
+      
+      // --- CONSTANTS ---
+      const FIREBASE_CONFIG = {
         apiKey: "AIzaSyBExPCqUUq1Br3CT7m-SRvWYzFRMirCRIU", 
         authDomain: "customer-feedback-901f9.firebaseapp.com",
         projectId: "customer-feedback-901f9", 
@@ -109,10 +108,86 @@
         measurementId: "G-7BJZE8R165"
       };
 
+      const GOOGLE_SHEET_URL = 'https://script.google.com/macros/s/AKfycbzDZsfZySFKVkZFQ__O_OJUc8_yDe39afZ_MxN1-mSSVsjITB_zUszFbcLlkUz33aJF/exec';
+
+      const FEEDBACK_OPTIONS = [
+        { 
+          id: 'store_view', 
+          label: 'Store View / Walk-in', 
+          image: 'https://raw.githubusercontent.com/kasamfashions/Kasamfeedback/290d44d71e5cd78c11f7375bc84269a561fecbe2/Store.png', 
+          colorClass: 'from-red-500 to-pink-600' 
+        },
+        { 
+          id: 'digital', 
+          label: 'Digital Marketing (FB/Insta)', 
+          image: 'https://raw.githubusercontent.com/kasamfashions/Kasamfeedback/f7da385af1d4945d1609848d98140de673aa4167/Screenshot%202025-12-09%20183729.png', 
+          colorClass: 'from-pink-500 to-rose-500' 
+        },
+        { 
+          id: 'friends', 
+          label: 'Friends & Relatives', 
+          image: 'https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&w=600&q=80', 
+          colorClass: 'from-purple-500 to-violet-500' 
+        },
+        { 
+          id: 'hoardings', 
+          label: 'Hoardings', 
+          image: 'https://raw.githubusercontent.com/kasamfashions/Kasamfeedback/fcf11e283f3b19ba3a232f55efbb670ef77e32ea/Bill%20Board.png', 
+          colorClass: 'from-amber-500 to-orange-500' 
+        },
+        { 
+          id: 'auto_ads', 
+          label: 'Auto Ads', 
+          image: 'https://raw.githubusercontent.com/kasamfashions/Kasamfeedback/03ccd3e14902071dea7d38c95b23b7fc5ecfdf4a/ChatGPT%20Image%20Dec%209%2C%202025%2C%2007_22_37%20PM.png', 
+          colorClass: 'from-yellow-400 to-amber-500' 
+        },
+        { 
+          id: 'cable_tv', 
+          label: 'Cable TV Ads', 
+          image: 'https://raw.githubusercontent.com/kasamfashions/Kasamfeedback/2fe256890adebdbcd28eb2aeded77da420fafa95/TV%20Add.png', 
+          colorClass: 'from-blue-500 to-cyan-500' 
+        },
+        { 
+          id: 'pamphlets', 
+          label: 'Pamphlets', 
+          image: 'https://raw.githubusercontent.com/kasamfashions/Kasamfeedback/a323c4594234600fe53f9e6d18d9001038bfefe6/Pamplets.png', 
+          colorClass: 'from-green-500 to-emerald-500' 
+        },
+        { 
+          id: 'paper_inserts', 
+          label: 'Paper Inserts', 
+          image: 'https://raw.githubusercontent.com/kasamfashions/Kasamfeedback/035f67eb9968aea51d19ec257d35d98476bed202/Newspaper.png', 
+          colorClass: 'from-slate-500 to-gray-600' 
+        },
+        { 
+          id: 'street', 
+          label: 'Street Activities', 
+          image: 'https://raw.githubusercontent.com/kasamfashions/Kasamfeedback/2e34e5826822b30fed00549e4634cc5757bb0231/Flashmob.png', 
+          colorClass: 'from-teal-500 to-green-500' 
+        },
+        { 
+          id: 'other', 
+          label: 'Others', 
+          image: 'https://images.unsplash.com/photo-1512314889357-e157c22f938d?auto=format&fit=crop&w=600&q=80', 
+          colorClass: 'from-indigo-500 to-blue-600' 
+        },
+      ];
+
+      const RATING_OPTIONS = [
+        { value: 1, emoji: '😠', label: 'Very Dissatisfied' },
+        { value: 2, emoji: '☹️', label: 'Dissatisfied' },
+        { value: 3, emoji: '😐', label: 'Neutral' },
+        { value: 4, emoji: '🙂', label: 'Satisfied' },
+        { value: 5, emoji: '😍', label: 'Very Satisfied' },
+      ];
+
+      // --- SERVICES ---
+
+      // 1. Firebase Service
       let db = null;
-      if (firebaseConfig.apiKey) {
+      if (FIREBASE_CONFIG.apiKey) {
         try {
-          const app = initializeApp(firebaseConfig);
+          const app = initializeApp(FIREBASE_CONFIG);
           db = getFirestore(app);
           console.log("Firebase initialized successfully");
         } catch (error) {
@@ -120,81 +195,13 @@
         }
       }
 
-      // --- GOOGLE SHEETS CONFIG ---
-      const GOOGLE_SHEET_URL = 'https://script.google.com/macros/s/AKfycbxJlQ9f4y7ZmBG6kZhZ9sAjPF08_LbOJ32tBSDHhmrglEOX1bYwP6rFJniCdpkvQRI/exec'; 
-      const APPS_SCRIPT_CODE = `function doPost(e) {
-  var lock = LockService.getScriptLock();
-  lock.tryLock(10000);
-
-  try {
-    var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-    if (sheet.getLastRow() === 0) {
-      sheet.appendRow(["ID", "Customer Name", "Location ID", "Location Name", "Source ID", "Source Label", "Other Details", "Timestamp", "Date", "Time"]);
-    }
-    var data = JSON.parse(e.postData.contents);
-    var d = new Date(data.timestamp);
-    sheet.appendRow([
-      "'"+data.id, 
-      data.customerName, 
-      data.locationId, 
-      data.locationName, 
-      data.sourceId,
-      data.sourceLabel, 
-      data.otherDetails, 
-      data.timestamp,
-      d.toLocaleDateString(), 
-      d.toLocaleTimeString()
-    ]);
-    return ContentService.createTextOutput(JSON.stringify({ "result": "success" })).setMimeType(ContentService.MimeType.JSON);
-  } catch (e) {
-    return ContentService.createTextOutput(JSON.stringify({ "result": "error", "error": e.toString() })).setMimeType(ContentService.MimeType.JSON);
-  } finally {
-    lock.releaseLock();
-  }
-}
-function doGet(e) {
-  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-  var rows = sheet.getDataRange().getValues();
-  var data = [];
-  for (var i = 1; i < rows.length; i++) {
-    var row = rows[i];
-    data.push({
-      id: row[0],
-      customerName: row[1],
-      locationId: row[2],
-      locationName: row[3],
-      sourceId: row[4],
-      sourceLabel: row[5],
-      otherDetails: row[6],
-      timestamp: row[7]
-    });
-  }
-  return ContentService.createTextOutput(JSON.stringify(data.reverse())).setMimeType(ContentService.MimeType.JSON);
-}`;
-
-      // --- CONSTANTS ---
-      const FEEDBACK_OPTIONS = [
-        { id: 'digital', label: 'Digital Marketing (FB/Insta)', icon: Smartphone, colorClass: 'from-pink-500 to-rose-500' },
-        { id: 'hoardings', label: 'Hoardings', icon: Frame, colorClass: 'from-amber-500 to-orange-500' },
-        { id: 'auto_ads', label: 'Auto Ads', icon: Car, colorClass: 'from-yellow-400 to-amber-500' },
-        { id: 'cable_tv', label: 'Cable TV Ads', icon: Tv, colorClass: 'from-blue-500 to-cyan-500' },
-        { id: 'pamphlets', label: 'Pamphlets Distribution', icon: Newspaper, colorClass: 'from-green-500 to-emerald-500' },
-        { id: 'friends', label: 'Friends & Relatives', icon: Users, colorClass: 'from-purple-500 to-violet-500' },
-        { id: 'store_view', label: 'Store View / Walk-in', icon: Store, colorClass: 'from-red-500 to-pink-600' },
-        { id: 'paper_inserts', label: 'Paper Inserts', icon: Scroll, colorClass: 'from-slate-500 to-gray-600' },
-        { id: 'street', label: 'Street Activities', icon: Megaphone, colorClass: 'from-teal-500 to-green-500' },
-        { id: 'other', label: 'Others', icon: MessageCircle, colorClass: 'from-indigo-500 to-blue-600' },
-      ];
-
-      // --- OPTIMIZED FIREBASE SERVICE (READ REDUCTION) ---
-
       const useLocations = () => {
         const [locations, setLocations] = useState([]);
         const [loading, setLoading] = useState(true);
 
         const CACHE_KEY = 'kasam_locations_data';
         const CACHE_TIME_KEY = 'kasam_locations_time';
-        const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 Hours in milliseconds
+        const CACHE_DURATION = 24 * 60 * 60 * 1000;
 
         const fetchLocations = async (forceRefresh = false) => {
           if (!db) {
@@ -203,16 +210,13 @@ function doGet(e) {
             return;
           }
 
-          // 1. Try Cache First
           if (!forceRefresh) {
             try {
               const cachedData = localStorage.getItem(CACHE_KEY);
               const cachedTime = localStorage.getItem(CACHE_TIME_KEY);
-              
               if (cachedData && cachedTime) {
                 const age = Date.now() - parseInt(cachedTime, 10);
                 if (age < CACHE_DURATION) {
-                  // console.log("Using Cached Locations (0 Reads)");
                   setLocations(JSON.parse(cachedData));
                   setLoading(false);
                   return;
@@ -221,17 +225,11 @@ function doGet(e) {
             } catch (e) { console.error("Cache access error", e); }
           }
 
-          // 2. Fetch from Network if cache invalid or empty
           try {
-            // console.log("Fetching Locations from Firebase (1 Read)");
             const q = query(collection(db, "locations"), orderBy("name"));
-            // IMPORTANT: Using getDocs instead of onSnapshot prevents continuous reads
             const snapshot = await getDocs(q); 
             const locs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            
             setLocations(locs);
-            
-            // 3. Update Cache
             localStorage.setItem(CACHE_KEY, JSON.stringify(locs));
             localStorage.setItem(CACHE_TIME_KEY, Date.now().toString());
           } catch (e) {
@@ -241,15 +239,12 @@ function doGet(e) {
           }
         };
 
-        useEffect(() => {
-          fetchLocations();
-        }, []);
+        useEffect(() => { fetchLocations(); }, []);
 
         const addLocation = async (name) => {
           if (!db) return;
           try { 
             await addDoc(collection(db, "locations"), { name });
-            // Force refresh to update UI and Cache immediately
             fetchLocations(true); 
           } catch (e) { console.error("Error adding location", e); }
         };
@@ -258,8 +253,6 @@ function doGet(e) {
           if (!db) return;
           try { 
             await deleteDoc(doc(db, "locations", id));
-            
-            // Optimistic update for immediate UI response without API call
             const updatedLocs = locations.filter(l => l.id !== id);
             setLocations(updatedLocs);
             localStorage.setItem(CACHE_KEY, JSON.stringify(updatedLocs));
@@ -270,7 +263,7 @@ function doGet(e) {
         return { locations, loading, addLocation, deleteLocation };
       };
 
-      // --- FIXED GOOGLE SHEETS SERVICES ---
+      // 2. Sheets Service
       const saveToGoogleSheet = async (data) => {
         try {
           await fetch(GOOGLE_SHEET_URL, {
@@ -289,10 +282,7 @@ function doGet(e) {
       const fetchFromGoogleSheet = async () => {
         try {
           const url = `${GOOGLE_SHEET_URL}?v=${Date.now()}`;
-          const response = await fetch(url, {
-            method: 'GET',
-            redirect: 'follow' 
-          });
+          const response = await fetch(url, { method: 'GET', redirect: 'follow' });
           if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
           const data = await response.json();
           return Array.isArray(data) ? data : [];
@@ -319,10 +309,11 @@ function doGet(e) {
         }
       };
 
-      // 4. CSV Download
+      // 4. CSV Utils
       const downloadCSV = (data) => {
         if (!data || !data.length) return;
-        const headers = ["Date", "Time", "Customer Name", "Location", "Source", "Details"];
+        // Added Rating to headers
+        const headers = ["Date", "Time", "Customer Name", "Phone", "Location", "Source", "Details", "Rating"];
         const csvContent = [
           headers.join(","),
           ...data.map(row => {
@@ -331,9 +322,11 @@ function doGet(e) {
               d.toLocaleDateString(),
               d.toLocaleTimeString(),
               `"${row.customerName || ''}"`,
+              `"${row.phoneNumber || ''}"`,
               `"${row.locationName || ''}"`,
               `"${row.sourceLabel || ''}"`,
-              `"${row.otherDetails || ''}"`
+              `"${row.otherDetails || ''}"`,
+              row.rating || ''
             ].join(",");
           })
         ].join("\n");
@@ -342,13 +335,12 @@ function doGet(e) {
         const url = URL.createObjectURL(blob);
         link.setAttribute("href", url);
         link.setAttribute("download", `kasam_feedback_export_${Date.now()}.csv`);
-        link.style.visibility = 'hidden';
-        document.body.appendChild(link);
         link.click();
-        document.body.removeChild(link);
       };
 
-      // --- UI COMPONENTS ---
+      // --- COMPONENTS ---
+
+      // Logo
       const Logo = ({ className }) => (
         <div className={`flex items-center gap-1 ${className}`}>
           <div className="">
@@ -359,57 +351,58 @@ function doGet(e) {
           </div>
         </div>
       );
-      
+
+      // OptionCard
       const OptionCard = ({ option, isSelected, onClick }) => {
-        const Icon = option.icon;
         return (
           <button
             onClick={onClick}
             className={`
-              relative group overflow-hidden rounded-2xl p-6 transition-all duration-300 ease-out
-              flex flex-col items-center justify-center gap-3 text-center
-              border-2 
+              relative group overflow-hidden rounded-2xl transition-all duration-300 ease-out
+              flex flex-col items-center justify-start text-center h-full w-full
+              border-2 shadow-sm
               ${isSelected 
-                ? 'border-transparent shadow-xl scale-105' 
+                ? 'border-transparent shadow-xl ring-2 ring-pink-500 scale-[1.02]' 
                 : 'border-white/50 hover:border-white hover:shadow-lg hover:-translate-y-1 bg-white/40'
               }
             `}
           >
-            <div className={`absolute inset-0 bg-gradient-to-br ${option.colorClass} transition-opacity duration-300 ${isSelected ? 'opacity-100' : 'opacity-0'}`} />
-            <div className={`relative z-10 transition-colors duration-300 w-full flex flex-col items-center ${isSelected ? 'text-white' : 'text-gray-700'}`}>
-              <div className={`w-16 h-16 rounded-full mb-3 flex items-center justify-center shrink-0 transition-all duration-300 ${isSelected ? 'bg-white/20' : 'bg-white/20 group-hover:bg-white'}`}>
-                <Icon size={32} strokeWidth={1.5} />
-              </div>
-              <span className="font-semibold text-sm md:text-base leading-tight break-words max-w-full">{option.label}</span>
+            <div className="w-full aspect-[4/3] overflow-hidden bg-gray-100 relative">
+              <img 
+                src={option.image} 
+                alt={option.label}
+                className={`
+                  w-full h-full object-cover transition-transform duration-700
+                  ${isSelected ? 'scale-110' : 'group-hover:scale-110'}
+                `}
+                loading="lazy"
+              />
+              <div className={`absolute inset-0 bg-black/10 group-hover:bg-transparent transition-colors duration-300 ${isSelected ? 'bg-black/20' : ''}`} />
+              {isSelected && (
+                <div className="absolute top-3 right-3 z-10 bg-white text-pink-600 rounded-full p-1 shadow-md animate-bounce">
+                  <CheckCircle2 size={20} fill="currentColor" className="text-white" />
+                </div>
+              )}
             </div>
-            {isSelected && (
-              <div className="absolute top-3 right-3 text-white animate-bounce">
-                <CheckCircle2 size={20} />
-              </div>
-            )}
+            <div className={`
+              w-full p-3 flex flex-col items-center justify-center flex-1 bg-white/80 backdrop-blur-md
+              transition-colors duration-300
+              ${isSelected ? 'bg-pink-50' : ''}
+            `}>
+              <span className={`
+                font-bold text-xs md:text-sm leading-tight break-words max-w-full
+                ${isSelected ? 'text-pink-700' : 'text-gray-800'}
+              `}>
+                {option.label}
+              </span>
+            </div>
           </button>
         );
       };
 
-      // --- MAIN APPLICATION ---
-      const App = () => {
-        const [viewMode, setViewMode] = useState('user'); 
-        const [step, setStep] = useState('location'); 
-        
-        // Data Hooks (Uses the optimized useLocations)
-        const { locations, addLocation, deleteLocation } = useLocations();
-        
-        // User Flow State
-        const [selectedLocationId, setSelectedLocationId] = useState('');
-        const [customerName, setCustomerName] = useState('');
-        const [selectedSourceId, setSelectedSourceId] = useState(null);
-        const [otherText, setOtherText] = useState('');
-        const [isSubmitting, setIsSubmitting] = useState(false);
-        const [aiMessage, setAiMessage] = useState('');
-
-        // Admin State
+      // AdminPanel
+      const AdminPanel = ({ isAuthenticated, setIsAuthenticated, setViewMode, locations, addLocation, deleteLocation }) => {
         const [adminPassword, setAdminPassword] = useState('');
-        const [isAuthenticated, setIsAuthenticated] = useState(false);
         const [adminTab, setAdminTab] = useState('dashboard');
         const [submissions, setSubmissions] = useState([]);
         const [isLoadingSubmissions, setIsLoadingSubmissions] = useState(false);
@@ -417,39 +410,8 @@ function doGet(e) {
         const [dashboardFilter, setDashboardFilter] = useState('all');
         const [reportStart, setReportStart] = useState('');
         const [reportEnd, setReportEnd] = useState('');
-        const [copied, setCopied] = useState(false);
-
-        // --- HANDLERS ---
-        const handleFeedbackSubmit = async () => {
-          if (!customerName.trim()) { alert("Please enter your name first!"); return; }
-          if (!selectedSourceId || !selectedLocationId) return;
-          
-          setIsSubmitting(true);
-          
-          const loc = locations.find(l => l.id === selectedLocationId);
-          const opt = FEEDBACK_OPTIONS.find(o => o.id === selectedSourceId);
-          const label = selectedSourceId === 'other' && otherText ? `Other: ${otherText}` : opt?.label || 'Unknown';
-          
-          const submissionData = {
-            id: Date.now().toString(),
-            customerName: customerName.trim(),
-            locationId: selectedLocationId,
-            locationName: loc?.name || 'Unknown',
-            sourceId: selectedSourceId,
-            sourceLabel: label,
-            otherDetails: otherText,
-            timestamp: new Date().toISOString()
-          };
-
-          await saveToGoogleSheet(submissionData);
-          const msg = await generateThankYouMessage(label);
-          setAiMessage(msg);
-          setIsSubmitting(false);
-          setStep('success');
-        };
 
         const loadAdminData = async () => {
-          if (!isAuthenticated) return;
           setIsLoadingSubmissions(true);
           const data = await fetchFromGoogleSheet();
           setSubmissions(data);
@@ -457,10 +419,8 @@ function doGet(e) {
         };
 
         useEffect(() => {
-          if (viewMode === 'admin' && isAuthenticated) {
-            loadAdminData();
-          }
-        }, [viewMode, isAuthenticated]);
+          if (isAuthenticated) loadAdminData();
+        }, [isAuthenticated]);
 
         const handleAdminLogin = () => {
           if (adminPassword === '123456') {
@@ -472,12 +432,11 @@ function doGet(e) {
         };
 
         const handleSoftDelete = (id) => {
-          if (window.confirm("This will remove the entry from your view temporarily, but IT WILL REMAIN in your Google Sheet. To delete permanently, please edit the Google Sheet directly.")) {
+          if (window.confirm("This will remove the entry from your view temporarily, but IT WILL REMAIN in your Google Sheet.")) {
             setSubmissions(prev => prev.filter(s => s.id !== id));
           }
         };
 
-        // --- COMPUTED DATA ---
         const filteredSubmissions = useMemo(() => {
           if (dashboardFilter === 'all') return submissions;
           return submissions.filter(s => s.locationId === dashboardFilter);
@@ -491,369 +450,185 @@ function doGet(e) {
           return Object.entries(s).sort((a, b) => b[1] - a[1]);
         }, [filteredSubmissions]);
 
-        // --- RENDER: SUCCESS SCREEN ---
+        if (!isAuthenticated) {
+          return (
+            <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4 font-sans">
+              <div className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md text-center">
+                <div className="w-16 h-16 bg-gray-900 text-white rounded-full flex items-center justify-center mx-auto mb-6">
+                  <Settings size={32} />
+                </div>
+                <h2 className="text-2xl font-bold mb-2">Admin Portal</h2>
+                <p className="text-gray-500 mb-6">Access dashboard and reports</p>
+                <input 
+                  type="password" value={adminPassword} onChange={e => setAdminPassword(e.target.value)} 
+                  placeholder="Enter Password" className="w-full px-4 py-3 rounded-lg border-2 border-gray-200 mb-4 text-center focus:border-black outline-none transition-colors"
+                  onKeyDown={e => e.key === 'Enter' && handleAdminLogin()}
+                />
+                <div className="flex gap-3">
+                  <button onClick={() => setViewMode('user')} className="flex-1 py-3 text-gray-500 hover:bg-gray-100 rounded-lg">Cancel</button>
+                  <button onClick={handleAdminLogin} className="flex-1 py-3 bg-black text-white rounded-lg hover:bg-gray-800">Login</button>
+                </div>
+              </div>
+            </div>
+          );
+        }
+
+        return (
+          <div className="min-h-screen bg-gray-100 flex flex-col md:flex-row font-sans text-gray-800">
+            <aside className="w-full md:w-64 bg-white border-r shadow-sm flex-none z-10 flex flex-col h-screen sticky top-0">
+              <div className="p-6 border-b flex items-center justify-between">
+                <Logo />
+                <button onClick={() => setViewMode('user')} className="md:hidden p-2 text-gray-500"><X size={20} /></button>
+              </div>
+              <nav className="p-4 space-y-2 flex-1">
+                {[
+                  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+                  { id: 'reports', label: 'Reports', icon: FileText },
+                  { id: 'settings', label: 'Settings', icon: Settings },
+                ].map(tab => (
+                  <button key={tab.id} onClick={() => setAdminTab(tab.id)} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${adminTab === tab.id ? 'bg-black text-white' : 'text-gray-600 hover:bg-gray-100'}`}>
+                    <tab.icon size={18} /> {tab.label}
+                  </button>
+                ))}
+              </nav>
+              <div className="p-4 border-t bg-gray-50"><button onClick={() => { setIsAuthenticated(false); setViewMode('user'); }} className="w-full flex items-center gap-2 text-red-600 hover:bg-red-50 px-4 py-2 rounded-lg transition-colors"><LogOut size={16} /> Logout</button></div>
+            </aside>
+            <main className="flex-1 overflow-y-auto p-4 md:p-8">
+              <div className="flex justify-between items-center mb-8">
+                <div><h2 className="text-2xl font-bold capitalize">{adminTab}</h2><p className="text-gray-500 text-sm">Real-time data from Google Sheets</p></div>
+                {adminTab !== 'settings' && (
+                  <div className="flex gap-2">
+                    <button onClick={loadAdminData} className="p-2 bg-white border rounded-lg hover:bg-gray-50 text-gray-600"><RefreshCw size={20} className={isLoadingSubmissions ? 'animate-spin' : ''} /></button>
+                    <select value={dashboardFilter} onChange={e => setDashboardFilter(e.target.value)} className="bg-white border rounded-lg px-4 py-2 shadow-sm text-sm outline-none focus:ring-1 focus:ring-black">
+                      <option value="all">All Locations</option>
+                      {locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+                    </select>
+                  </div>
+                )}
+              </div>
+              {isLoadingSubmissions && adminTab !== 'settings' ? <div className="flex justify-center py-20"><Loader2 className="animate-spin text-gray-400" size={40} /></div> : (
+                <>
+                  {adminTab === 'dashboard' && (
+                    <div className="max-w-6xl mx-auto space-y-6 animate-fadeIn">
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100"><p className="text-sm text-gray-500 mb-1">Total Submissions</p><p className="text-4xl font-bold">{filteredSubmissions.length}</p></div>
+                        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100"><p className="text-sm text-gray-500 mb-1">Top Source</p><p className="text-2xl font-bold truncate text-pink-600">{stats.length > 0 ? stats[0][0] : '-'}</p></div>
+                        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100"><p className="text-sm text-gray-500 mb-1">Latest Feedback</p><p className="text-sm font-medium mt-2">{filteredSubmissions[0] ? new Date(filteredSubmissions[0].timestamp).toLocaleString() : 'N/A'}</p></div>
+                      </div>
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100"><h3 className="font-bold text-lg mb-6 flex items-center gap-2"><BarChart3 size={20} /> Sources Breakdown</h3><div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">{stats.map(([label, count]) => (<div key={label}><div className="flex justify-between text-sm mb-2 font-medium"><span>{label}</span><span className="text-gray-600">{count} ({Math.round((count / filteredSubmissions.length) * 100)}%)</span></div><div className="w-full bg-gray-100 rounded-full h-2"><div className="bg-gradient-to-r from-pink-500 to-purple-600 h-2 rounded-full" style={{ width: `${(count / filteredSubmissions.length) * 100}%` }}></div></div></div>))}</div></div>
+                        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col"><h3 className="font-bold text-lg mb-6">Recent Comments</h3><div className="flex-1 overflow-y-auto pr-2 space-y-3 max-h-[400px] custom-scrollbar">{filteredSubmissions.filter(s => s.otherDetails).slice(0, 10).map((sub, i) => (<div key={i} className="p-4 bg-gray-50 rounded-xl border hover:border-gray-300 transition-colors"><div className="flex justify-between items-start mb-2"><span className="font-bold text-sm text-gray-900">{sub.customerName}</span><span className="text-[10px] text-gray-400 bg-white px-2 py-1 rounded border">{new Date(sub.timestamp).toLocaleDateString()}</span></div><p className="text-sm text-gray-600 italic">"{sub.otherDetails}"</p></div>))}</div></div>
+                      </div>
+                    </div>
+                  )}
+                  {adminTab === 'feedbacks' && (
+                     <div className="bg-white rounded-2xl shadow-sm border overflow-hidden animate-fadeIn"><div className="overflow-x-auto"><table className="w-full text-left border-collapse"><thead className="bg-gray-50 border-b"><tr><th className="p-4 font-semibold text-gray-600 text-sm">Date</th><th className="p-4 font-semibold text-gray-600 text-sm">Customer</th><th className="p-4 font-semibold text-gray-600 text-sm">Location</th><th className="p-4 font-semibold text-gray-600 text-sm">Source</th><th className="p-4 font-semibold text-gray-600 text-sm">Rating</th><th className="p-4 font-semibold text-gray-600 text-sm">Details</th><th className="p-4 font-semibold text-gray-600 text-sm text-right">Action</th></tr></thead><tbody className="divide-y">{filteredSubmissions.map((sub, idx) => (<tr key={idx} className="hover:bg-gray-50"><td className="p-4 text-sm text-gray-500">{new Date(sub.timestamp).toLocaleDateString()}</td><td className="p-4 font-medium text-sm">{sub.customerName}</td><td className="p-4 text-sm text-gray-600">{sub.locationName}</td><td className="p-4 text-sm"><span className="bg-blue-50 text-blue-700 px-2 py-1 rounded text-xs font-semibold">{sub.sourceLabel}</span></td><td className="p-4 text-sm text-yellow-500 tracking-widest">{sub.rating ? '★'.repeat(sub.rating) : '-'}</td><td className="p-4 text-sm text-gray-500 max-w-xs truncate">{sub.otherDetails || '-'}</td><td className="p-4 text-right"><button onClick={() => handleSoftDelete(sub.id)} className="text-gray-400 hover:text-red-600 p-2"><Trash2 size={16} /></button></td></tr>))}</tbody></table></div></div>
+                  )}
+                  {adminTab === 'settings' && (
+                     <div className="max-w-4xl mx-auto animate-fadeIn space-y-6"><div className="bg-white p-6 rounded-2xl shadow-sm border"><h3 className="font-bold text-lg mb-4">Add Store Location</h3><div className="flex gap-3 mb-6"><input type="text" value={newLocationName} onChange={e => setNewLocationName(e.target.value)} placeholder="e.g. Hanamkonda" className="flex-1 border rounded-xl px-4 py-3 focus:ring-2 focus:ring-black outline-none" /><button onClick={() => { if(newLocationName) { addLocation(newLocationName); setNewLocationName(''); } }} className="bg-black text-white px-6 rounded-xl font-medium hover:bg-gray-800 transition-colors">Add</button></div><div className="overflow-hidden border rounded-xl"><table className="w-full text-left"><thead className="bg-gray-50 border-b"><tr><th className="p-4 text-sm font-semibold text-gray-600">Location Name</th><th className="p-4 text-sm font-semibold text-gray-600 text-right">Action</th></tr></thead><tbody className="divide-y">{locations.map(loc => (<tr key={loc.id} className="hover:bg-gray-50"><td className="p-4 font-medium">{loc.name}</td><td className="p-4 text-right"><button onClick={() => deleteLocation(loc.id)} className="text-red-500 hover:text-red-700 hover:bg-red-50 px-3 py-1.5 rounded text-sm transition-colors flex items-center gap-1 ml-auto"><Trash2 size={14} /> Remove</button></td></tr>))}</tbody></table></div></div></div>
+                  )}
+                  {adminTab === 'reports' && (
+                    <div className="max-w-2xl mx-auto animate-fadeIn"><div className="bg-white p-8 rounded-2xl shadow-sm border"><div className="flex items-center gap-4 mb-6"><div className="p-3 bg-green-100 text-green-700 rounded-xl"><FileText size={24} /></div><div><h3 className="font-bold text-lg">Export CSV Report</h3><p className="text-gray-500 text-sm">Download raw data processed from Google Sheets.</p></div></div><div className="grid grid-cols-2 gap-4 mb-6"><div><label className="block text-sm font-bold mb-2">Start Date</label><input type="date" value={reportStart} onChange={e => setReportStart(e.target.value)} className="w-full border rounded-xl px-4 py-3" /></div><div><label className="block text-sm font-bold mb-2">End Date</label><input type="date" value={reportEnd} onChange={e => setReportEnd(e.target.value)} className="w-full border rounded-xl px-4 py-3" /></div></div><button onClick={() => { if(!reportStart || !reportEnd) return alert("Select dates."); const start = new Date(reportStart).setHours(0,0,0,0); const end = new Date(reportEnd).setHours(23,59,59,999); const data = submissions.filter(s => { const t = new Date(s.timestamp).getTime(); return t >= start && t <= end; }); if(data.length === 0) return alert("No data in range."); downloadCSV(data); }} className="w-full bg-black text-white py-4 rounded-xl font-bold hover:bg-gray-800 flex justify-center gap-2"><Download size={20} /> Download CSV</button></div></div>
+                  )}
+                </>
+              )}
+            </main>
+          </div>
+        );
+      };
+
+      // --- MAIN APP ---
+      const App = () => {
+        const [viewMode, setViewMode] = useState('user');
+        const [step, setStep] = useState('location');
+        const [isAuthenticated, setIsAuthenticated] = useState(false);
+        const { locations, addLocation, deleteLocation } = useLocations();
+        const [selectedLocationId, setSelectedLocationId] = useState('');
+        const [customerName, setCustomerName] = useState('');
+        const [phoneNumber, setPhoneNumber] = useState(''); 
+        const [selectedSourceId, setSelectedSourceId] = useState(null);
+        const [otherText, setOtherText] = useState('');
+        const [rating, setRating] = useState(null); // Added Rating State
+        const [isSubmitting, setIsSubmitting] = useState(false);
+        const [aiMessage, setAiMessage] = useState('');
+
+        const handleFeedbackSubmit = async () => {
+          if (!customerName.trim()) { alert("Please enter your name!"); return; }
+          if (!phoneNumber.trim()) { alert("Please enter your phone number!"); return; }
+          if (!rating) { alert("Please provide a rating!"); return; } // Validate Rating
+          
+          if (!selectedSourceId || !selectedLocationId) return;
+          setIsSubmitting(true);
+          const loc = locations.find(l => l.id === selectedLocationId);
+          const opt = FEEDBACK_OPTIONS.find(o => o.id === selectedSourceId);
+          const label = selectedSourceId === 'other' && otherText ? `Other: ${otherText}` : opt?.label || 'Unknown';
+          const submissionData = {
+            id: Date.now().toString(),
+            customerName: customerName.trim(),
+            phoneNumber: phoneNumber.trim(),
+            locationId: selectedLocationId,
+            locationName: loc?.name || 'Unknown',
+            sourceId: selectedSourceId,
+            sourceLabel: label,
+            rating: rating, // Added rating to submission
+            otherDetails: otherText,
+            timestamp: new Date().toISOString()
+          };
+          await saveToGoogleSheet(submissionData);
+          const msg = await generateThankYouMessage(label);
+          setAiMessage(msg);
+          setIsSubmitting(false);
+          setStep('success');
+        };
+
+        if (viewMode === 'admin') return <AdminPanel isAuthenticated={isAuthenticated} setIsAuthenticated={setIsAuthenticated} setViewMode={setViewMode} locations={locations} addLocation={addLocation} deleteLocation={deleteLocation} />;
+
         if (step === 'success') {
           return (
-            <div className="min-h-screen relative overflow-hidden bg-cover bg-center flex items-center justify-center p-4"
-                 style={{ backgroundImage: 'url("https://images.unsplash.com/photo-1490481651871-ab68de25d43d?q=80&w=2070&auto=format&fit=crop")' }}>
+            <div className="min-h-screen relative overflow-hidden bg-cover bg-center flex items-center justify-center p-4" style={{ backgroundImage: 'url("https://images.unsplash.com/photo-1490481651871-ab68de25d43d?q=80&w=2070&auto=format&fit=crop")' }}>
               <div className="absolute inset-0 bg-black/40 backdrop-blur-sm"></div>
               <div className="glass-panel max-w-lg w-full rounded-3xl p-10 text-center relative z-10 animate-float shadow-2xl">
-                <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6 text-green-600">
-                   <ShoppingBag size={40} />
-                </div>
+                <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6 text-green-600"><ShoppingBag size={40} /></div>
                 <h2 className="text-3xl md:text-4xl font-bold mb-4 text-gray-800 serif-font">Thank You!</h2>
                 <div className="h-1 w-20 bg-pink-500 mx-auto mb-6 rounded-full"></div>
                 <p className="text-xl text-gray-700 italic font-medium leading-relaxed mb-8">"{aiMessage}"</p>
-                <button onClick={() => { setStep('location'); setSelectedSourceId(null); setOtherText(''); }} className="text-sm text-black hover:text-black-200 underline">Return to Home</button>
+                <button onClick={() => { setStep('location'); setSelectedSourceId(null); setOtherText(''); setCustomerName(''); setPhoneNumber(''); setRating(null); }} className="text-sm text-black hover:text-black-200 underline">Return to Home</button>
               </div>
             </div>
           );
         }
 
-        // --- RENDER: ADMIN SCREEN ---
-        if (viewMode === 'admin') {
-          if (!isAuthenticated) {
-            return (
-              <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4 font-sans">
-                <div className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md text-center">
-                  <div className="w-16 h-16 bg-gray-900 text-white rounded-full flex items-center justify-center mx-auto mb-6">
-                    <Lock size={32} />
-                  </div>
-                  <h2 className="text-2xl font-bold mb-2">Admin Portal</h2>
-                  <p className="text-gray-500 mb-6">Access dashboard and reports</p>
-                  <input 
-                    type="password" 
-                    value={adminPassword} 
-                    onChange={e => setAdminPassword(e.target.value)} 
-                    placeholder="Enter Password"
-                    className="w-full px-4 py-3 rounded-lg border-2 border-gray-200 mb-4 text-center focus:border-black outline-none transition-colors"
-                    onKeyDown={e => e.key === 'Enter' && handleAdminLogin()}
-                  />
-                  <div className="flex gap-3">
-                    <button onClick={() => setViewMode('user')} className="flex-1 py-3 text-gray-500 hover:bg-gray-100 rounded-lg">Cancel</button>
-                    <button onClick={handleAdminLogin} className="flex-1 py-3 bg-black text-white rounded-lg hover:bg-gray-800">Login</button>
-                  </div>
-                </div>
-              </div>
-            );
-          }
-
-          return (
-            <div className="min-h-screen bg-gray-100 flex flex-col md:flex-row font-sans text-gray-800">
-              {/* Admin Sidebar */}
-              <aside className="w-full md:w-64 bg-white border-r shadow-sm flex-none z-10 flex flex-col h-screen sticky top-0">
-                <div className="p-6 border-b flex items-center justify-between">
-                   <Logo />
-                   <button onClick={() => setViewMode('user')} className="md:hidden p-2 text-gray-500"><X size={20} /></button>
-                </div>
-                <nav className="p-4 space-y-2 flex-1">
-                  {[
-                    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-                    { id: 'feedbacks', label: 'Feedbacks', icon: MessageSquare },
-                    { id: 'reports', label: 'Reports', icon: FileText },
-                    { id: 'settings', label: 'Settings', icon: Settings },
-                  ].map(tab => (
-                    <button 
-                      key={tab.id}
-                      onClick={() => setAdminTab(tab.id)}
-                      className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${adminTab === tab.id ? 'bg-black text-white' : 'text-gray-600 hover:bg-gray-100'}`}
-                    >
-                      <tab.icon size={18} /> {tab.label}
-                    </button>
-                  ))}
-                </nav>
-                <div className="p-4 border-t bg-gray-50">
-                   <div className="text-xs text-gray-500 mb-2">Data Source: Google Sheets</div>
-                   <button onClick={() => { setIsAuthenticated(false); setViewMode('user'); }} className="w-full flex items-center gap-2 text-red-600 hover:bg-red-50 px-4 py-2 rounded-lg transition-colors">
-                    <LogOut size={16} /> Logout
-                  </button>
-                </div>
-              </aside>
-
-              {/* Admin Content */}
-              <main className="flex-1 overflow-y-auto p-4 md:p-8">
-                {/* Header Filter */}
-                <div className="flex justify-between items-center mb-8">
-                  <div>
-                    <h2 className="text-2xl font-bold capitalize">{adminTab}</h2>
-                    <p className="text-gray-500 text-sm">Real-time data from Google Sheets</p>
-                  </div>
-                  {adminTab !== 'settings' && (
-                     <div className="flex gap-2">
-                       <button onClick={loadAdminData} className="p-2 bg-white border rounded-lg hover:bg-gray-50 text-gray-600" title="Refresh Data">
-                         <RefreshCw size={20} className={isLoadingSubmissions ? 'animate-spin' : ''} />
-                       </button>
-                       <select value={dashboardFilter} onChange={e => setDashboardFilter(e.target.value)} className="bg-white border rounded-lg px-4 py-2 shadow-sm text-sm outline-none focus:ring-1 focus:ring-black">
-                        <option value="all">All Locations</option>
-                        {locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
-                      </select>
-                     </div>
-                  )}
-                </div>
-
-                {isLoadingSubmissions && adminTab !== 'settings' ? (
-                  <div className="flex justify-center py-20"><Loader2 className="animate-spin text-gray-400" size={40} /></div>
-                ) : (
-                  <>
-                    {/* DASHBOARD */}
-                    {adminTab === 'dashboard' && (
-                      <div className="max-w-6xl mx-auto space-y-6 animate-fadeIn">
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                          <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                             <p className="text-sm text-gray-500 mb-1">Total Submissions</p>
-                             <p className="text-4xl font-bold">{filteredSubmissions.length}</p>
-                          </div>
-                          <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                             <p className="text-sm text-gray-500 mb-1">Top Source</p>
-                             <p className="text-2xl font-bold truncate text-pink-600">{stats.length > 0 ? stats[0][0] : '-'}</p>
-                          </div>
-                          <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                             <p className="text-sm text-gray-500 mb-1">Latest Feedback</p>
-                             <p className="text-sm font-medium mt-2">{filteredSubmissions[0] ? new Date(filteredSubmissions[0].timestamp).toLocaleString() : 'N/A'}</p>
-                          </div>
-                        </div>
-
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                           <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                            <h3 className="font-bold text-lg mb-6 flex items-center gap-2"><BarChart3 size={20} /> Sources Breakdown</h3>
-                            <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
-                              {stats.map(([label, count]) => (
-                                <div key={label}>
-                                  <div className="flex justify-between text-sm mb-2 font-medium">
-                                    <span>{label}</span>
-                                    <span className="text-gray-600">{count} ({Math.round((count / filteredSubmissions.length) * 100)}%)</span>
-                                  </div>
-                                  <div className="w-full bg-gray-100 rounded-full h-2">
-                                    <div className="bg-gradient-to-r from-pink-500 to-purple-600 h-2 rounded-full" style={{ width: `${(count / filteredSubmissions.length) * 100}%` }}></div>
-                                  </div>
-                                </div>
-                              ))}
-                              {stats.length === 0 && <p className="text-gray-400 text-center py-4">No data available. Check Sheet Permissions.</p>}
-                            </div>
-                          </div>
-                           <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col">
-                            <h3 className="font-bold text-lg mb-6">Recent Comments</h3>
-                            <div className="flex-1 overflow-y-auto pr-2 space-y-3 max-h-[400px] custom-scrollbar">
-                              {filteredSubmissions.filter(s => s.otherDetails).slice(0, 10).map((sub, i) => (
-                                <div key={i} className="p-4 bg-gray-50 rounded-xl border hover:border-gray-300 transition-colors">
-                                  <div className="flex justify-between items-start mb-2">
-                                    <span className="font-bold text-sm text-gray-900">{sub.customerName}</span>
-                                    <span className="text-[10px] text-gray-400 bg-white px-2 py-1 rounded border">{new Date(sub.timestamp).toLocaleDateString()}</span>
-                                  </div>
-                                  <p className="text-sm text-gray-600 italic">"{sub.otherDetails}"</p>
-                                </div>
-                              ))}
-                              {filteredSubmissions.filter(s => s.otherDetails).length === 0 && <p className="text-gray-400 text-center py-4">No specific comments found.</p>}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* FEEDBACKS TABLE */}
-                    {adminTab === 'feedbacks' && (
-                       <div className="bg-white rounded-2xl shadow-sm border overflow-hidden animate-fadeIn">
-                          <div className="overflow-x-auto">
-                            <table className="w-full text-left border-collapse">
-                              <thead className="bg-gray-50 border-b">
-                                <tr>
-                                  <th className="p-4 font-semibold text-gray-600 text-sm">Date</th>
-                                  <th className="p-4 font-semibold text-gray-600 text-sm">Customer</th>
-                                  <th className="p-4 font-semibold text-gray-600 text-sm">Location</th>
-                                  <th className="p-4 font-semibold text-gray-600 text-sm">Source</th>
-                                  <th className="p-4 font-semibold text-gray-600 text-sm">Details</th>
-                                  <th className="p-4 font-semibold text-gray-600 text-sm text-right">Action</th>
-                                </tr>
-                              </thead>
-                              <tbody className="divide-y">
-                                {filteredSubmissions.map((sub, idx) => (
-                                  <tr key={idx} className="hover:bg-gray-50">
-                                    <td className="p-4 text-sm text-gray-500">
-                                      {new Date(sub.timestamp).toLocaleDateString()}
-                                      <div className="text-xs text-gray-400">{new Date(sub.timestamp).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div>
-                                    </td>
-                                    <td className="p-4 font-medium text-sm">{sub.customerName}</td>
-                                    <td className="p-4 text-sm text-gray-600">{sub.locationName}</td>
-                                    <td className="p-4 text-sm"><span className="bg-blue-50 text-blue-700 px-2 py-1 rounded text-xs font-semibold">{sub.sourceLabel}</span></td>
-                                    <td className="p-4 text-sm text-gray-500 max-w-xs truncate">{sub.otherDetails || '-'}</td>
-                                    <td className="p-4 text-right">
-                                      <button onClick={() => handleSoftDelete(sub.id)} className="text-gray-400 hover:text-red-600 p-2" title="Hide from view">
-                                        <Trash2 size={16} />
-                                      </button>
-                                    </td>
-                                  </tr>
-                                ))}
-                                {filteredSubmissions.length === 0 && <tr><td colSpan="6" className="p-8 text-center text-gray-400">No data found. Check Google Apps Script Deployment (Access: Anyone).</td></tr>}
-                              </tbody>
-                            </table>
-                          </div>
-                       </div>
-                    )}
-
-                    {/* SETTINGS (LOCATIONS & SCRIPT) */}
-                    {adminTab === 'settings' && (
-                       <div className="max-w-4xl mx-auto animate-fadeIn space-y-6">
-                        
-                        {/* Locations Card */}
-                        <div className="bg-white p-6 rounded-2xl shadow-sm border">
-                          <h3 className="font-bold text-lg mb-4">Add Store Location</h3>
-                          <div className="flex gap-3 mb-6">
-                            <input 
-                              type="text" 
-                              value={newLocationName} 
-                              onChange={e => setNewLocationName(e.target.value)} 
-                              placeholder="e.g. Hanamkonda" 
-                              className="flex-1 border rounded-xl px-4 py-3 focus:ring-2 focus:ring-black outline-none"
-                            />
-                            <button onClick={() => { if(newLocationName) { addLocation(newLocationName); setNewLocationName(''); } }} className="bg-black text-white px-6 rounded-xl font-medium hover:bg-gray-800 transition-colors">
-                              Add
-                            </button>
-                          </div>
-                          <div className="overflow-hidden border rounded-xl">
-                            <table className="w-full text-left">
-                              <thead className="bg-gray-50 border-b">
-                                <tr>
-                                  <th className="p-4 text-sm font-semibold text-gray-600">Location Name</th>
-                                  <th className="p-4 text-sm font-semibold text-gray-600 text-right">Action</th>
-                                </tr>
-                              </thead>
-                              <tbody className="divide-y">
-                                {locations.map(loc => (
-                                  <tr key={loc.id} className="hover:bg-gray-50">
-                                    <td className="p-4 font-medium">{loc.name}</td>
-                                    <td className="p-4 text-right">
-                                      <button onClick={() => deleteLocation(loc.id)} className="text-red-500 hover:text-red-700 hover:bg-red-50 px-3 py-1.5 rounded text-sm transition-colors flex items-center gap-1 ml-auto">
-                                        <Trash2 size={14} /> Remove
-                                      </button>
-                                    </td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
-                        </div>
-                       </div>
-                    )}
-
-                    {/* REPORTS */}
-                    {adminTab === 'reports' && (
-                      <div className="max-w-2xl mx-auto animate-fadeIn">
-                         <div className="bg-white p-8 rounded-2xl shadow-sm border">
-                            <div className="flex items-center gap-4 mb-6">
-                              <div className="p-3 bg-green-100 text-green-700 rounded-xl"><FileText size={24} /></div>
-                              <div>
-                                <h3 className="font-bold text-lg">Export CSV Report</h3>
-                                <p className="text-gray-500 text-sm">Download raw data processed from Google Sheets.</p>
-                              </div>
-                            </div>
-                            
-                            <div className="grid grid-cols-2 gap-4 mb-6">
-                              <div>
-                                <label className="block text-sm font-bold mb-2">Start Date</label>
-                                <input type="date" value={reportStart} onChange={e => setReportStart(e.target.value)} className="w-full border rounded-xl px-4 py-3" />
-                              </div>
-                              <div>
-                                <label className="block text-sm font-bold mb-2">End Date</label>
-                                <input type="date" value={reportEnd} onChange={e => setReportEnd(e.target.value)} className="w-full border rounded-xl px-4 py-3" />
-                              </div>
-                            </div>
-
-                            <button 
-                              onClick={() => {
-                                if(!reportStart || !reportEnd) return alert("Select dates.");
-                                const start = new Date(reportStart).setHours(0,0,0,0);
-                                const end = new Date(reportEnd).setHours(23,59,59,999);
-                                const data = submissions.filter(s => {
-                                  const t = new Date(s.timestamp).getTime();
-                                  return t >= start && t <= end;
-                                });
-                                if(data.length === 0) return alert("No data in range.");
-                                downloadCSV(data);
-                              }}
-                              className="w-full bg-black text-white py-4 rounded-xl font-bold hover:bg-gray-800 flex justify-center gap-2"
-                            >
-                              <Download size={20} /> Download CSV
-                            </button>
-                         </div>
-                      </div>
-                    )}
-                  </>
-                )}
-              </main>
-            </div>
-          );
-        }
-
-        // --- RENDER: USER SCREEN ---
         return (
           <div className="min-h-screen relative bg-gray-50 font-sans">
-             {/* Background Decor */}
             <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none">
               <div className="absolute -top-[10%] -right-[10%] w-[50vw] h-[50vw] bg-pink-200/40 rounded-full blur-3xl mix-blend-multiply filter opacity-70 animate-blob"></div>
               <div className="absolute top-[20%] -left-[10%] w-[50vw] h-[50vw] bg-purple-200/40 rounded-full blur-3xl mix-blend-multiply filter opacity-70 animate-blob animation-delay-2000"></div>
               <div className="absolute -bottom-[10%] left-[20%] w-[50vw] h-[50vw] bg-yellow-200/40 rounded-full blur-3xl mix-blend-multiply filter opacity-70 animate-blob animation-delay-4000"></div>
             </div>
-
-            {/* Header / Nav */}
             <div className="relative z-50 flex justify-between items-center p-6 container mx-auto max-w-6xl">
               <Logo />
-              <button onClick={() => setViewMode('admin')} className="p-2 bg-white/50 hover:bg-white rounded-full transition-colors backdrop-blur-md border border-white/40 shadow-sm text-gray-700">
-                <Lock size={18} />
-              </button>
+              <button onClick={() => setViewMode('admin')} className="p-2 bg-white/50 hover:bg-white rounded-full transition-colors backdrop-blur-md border border-white/40 shadow-sm text-gray-700"><Lock size={18} /></button>
             </div>
-
-            {/* Content */}
             <div className="relative z-10 container mx-auto px-4 py-4 md:py-8 max-w-6xl min-h-[80vh] flex flex-col">
-               <header className="text-center mb-10 flex-none">
-                <div className="inline-block p-3 rounded-full bg-white/80 shadow-sm mb-4 backdrop-blur-sm">
-                  <span className="text-xs font-bold tracking-widest text-pink-600 uppercase px-2">
-                    {step === 'location' ? 'Welcome, Kasam Fashions Private Limted' : locations.find(l => l.id === selectedLocationId)?.name}
-                  </span>
-                </div>
-                <h1 className="text-4xl md:text-6xl font-bold text-gray-900 serif-font mt-2 leading-tight">
-                  {step === 'location' ? (
-                    <>Select Your <span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-600 to-purple-600">Store Location</span></>
-                  ) : (
-                    <>We value your <span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-600 to-purple-600">Feedback</span></>
-                  )}
-                </h1>
+              <header className="text-center mb-10 flex-none">
+                <div className="inline-block p-3 rounded-full bg-white/80 shadow-sm mb-4 backdrop-blur-sm"><span className="text-xs font-bold tracking-widest text-pink-600 uppercase px-2">{step === 'location' ? 'Welcome, Kasam Fashions Private Limted' : locations.find(l => l.id === selectedLocationId)?.name}</span></div>
+                <h1 className="text-4xl md:text-6xl font-bold text-gray-900 serif-font mt-2 leading-tight">{step === 'location' ? <>Select Your <span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-600 to-purple-600">Store Location</span></> : <>We value your <span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-600 to-purple-600">Feedback</span></>}</h1>
               </header>
-
               {step === 'location' && (
                 <div className="flex-1 flex flex-col items-center justify-center animate-fadeIn pb-20">
                   <div className="w-full max-w-md bg-white/30 backdrop-blur-lg border border-white/50 rounded-3xl p-8 shadow-2xl">
                     <label className="block text-gray-700 font-semibold mb-4 text-center">Where are you shopping today?</label>
-                    <div className="relative mb-8">
-                      <select 
-                        value={selectedLocationId}
-                        onChange={(e) => setSelectedLocationId(e.target.value)}
-                        className="w-full appearance-none bg-white/60 border border-white rounded-xl px-6 py-4 text-lg text-gray-800 shadow-sm focus:outline-none focus:ring-4 focus:ring-pink-200 transition-all cursor-pointer"
-                      >
-                        <option value="" disabled>Select a location...</option>
-                        {locations.map(loc => (
-                          <option key={loc.id} value={loc.id}>{loc.name}</option>
-                        ))}
-                      </select>
-                      <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-gray-500"><ChevronDown size={24} /></div>
-                    </div>
-                    <button
-                      onClick={() => { if(selectedLocationId) { setCustomerName(''); setStep('feedback'); } }}
-                      disabled={!selectedLocationId}
-                      className={`w-full py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 transition-all duration-300 ${selectedLocationId ? 'bg-black text-white hover:scale-[1.02] shadow-xl' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`}
-                    >
-                      Continue <ArrowRight size={20} />
-                    </button>
+                    <div className="relative mb-8"><select value={selectedLocationId} onChange={(e) => setSelectedLocationId(e.target.value)} className="w-full appearance-none bg-white/60 border border-white rounded-xl px-6 py-4 text-lg text-gray-800 shadow-sm focus:outline-none focus:ring-4 focus:ring-pink-200 transition-all cursor-pointer"><option value="" disabled>Select a location...</option>{locations.map(loc => (<option key={loc.id} value={loc.id}>{loc.name}</option>))}</select><div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-gray-500"><ChevronDown size={24} /></div></div>
+                    <button onClick={() => { if(selectedLocationId) { setCustomerName(''); setStep('feedback'); } }} disabled={!selectedLocationId} className={`w-full py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 transition-all duration-300 ${selectedLocationId ? 'bg-black text-white hover:scale-[1.02] shadow-xl' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`}>Continue <ArrowRight size={20} /></button>
                   </div>
                 </div>
               )}
-
               {step === 'feedback' && (
                 <div className="flex-1 animate-slideUp pb-20">
-                  <button onClick={() => setStep('location')} className="mb-6 flex items-center gap-2 text-gray-500 hover:text-gray-900 transition-colors mx-auto md:mx-0">
-                    <ArrowRight className="rotate-180" size={16} /> Change Location
-                  </button>
+                  <button onClick={() => setStep('location')} className="mb-6 flex items-center gap-2 text-gray-500 hover:text-gray-900 transition-colors mx-auto md:mx-0"><ArrowRight className="rotate-180" size={16} /> Change Location</button>
                   
-                  <div className="max-w-xl mx-auto mb-8">
+                  {/* Grid container for Name and Phone inputs */}
+                  <div className="max-w-3xl mx-auto mb-8 grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="relative">
                       <input 
                         type="text" 
@@ -865,28 +640,51 @@ function doGet(e) {
                       />
                       <User className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={24} />
                     </div>
+                    <div className="relative">
+                      <input 
+                        type="tel" 
+                        value={phoneNumber} 
+                        onChange={(e) => setPhoneNumber(e.target.value)} 
+                        placeholder="Phone Number" 
+                        className="w-full pl-12 pr-5 py-4 rounded-xl border-2 border-white/50 bg-white/40 backdrop-blur-md focus:border-pink-500 focus:bg-white/80 outline-none transition-all shadow-sm text-lg placeholder-gray-500" 
+                      />
+                      <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={24} />
+                    </div>
                   </div>
 
-                  <h3 className="text-2xl font-bold text-center mb-8 mt-2 serif-font text-gray-800">
-                    <>How did you hear <span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-600 to-purple-600">about us?</span></>
-                  </h3>
+                  <h3 className="text-2xl font-bold text-center mb-8 mt-2 serif-font text-gray-800">How did you hear <span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-600 to-purple-600">about us?</span></h3>
+                  <div className={`transition-all duration-500 ${!customerName.trim() || !phoneNumber.trim() ? 'opacity-50 pointer-events-none grayscale' : 'opacity-100'}`}>
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6 mb-12">{FEEDBACK_OPTIONS.map((option) => (<OptionCard key={option.id} option={option} isSelected={selectedSourceId === option.id} onClick={() => setSelectedSourceId(option.id)} />))}</div>
+                    {selectedSourceId === 'other' && (<div className="max-w-xl mx-auto mb-10"><input type="text" value={otherText} onChange={(e) => setOtherText(e.target.value)} placeholder="Please specify..." className="w-full px-5 py-4 rounded-xl border-2 border-indigo-100 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 outline-none transition-all shadow-sm text-lg" autoFocus /></div>)}
+                    
+                    {/* Rating Section - Added */}
+                    <div className="max-w-3xl mx-auto mb-10 text-center">
+                        <h3 className="text-xl font-bold mb-6 text-gray-800 serif-font">Rate your Overall Experience</h3>
+                        <div className="flex justify-center gap-4 md:gap-8">
+                            {RATING_OPTIONS.map((opt) => (
+                                <button
+                                    key={opt.value}
+                                    onClick={() => setRating(opt.value)}
+                                    className={`
+                                        text-4xl md:text-5xl transition-all duration-300 transform hover:scale-125 focus:outline-none
+                                        ${rating === opt.value 
+                                            ? 'scale-125 grayscale-0 opacity-100 drop-shadow-xl' 
+                                            : 'grayscale opacity-60 hover:grayscale-0 hover:opacity-100'
+                                        }
+                                    `}
+                                    title={opt.label}
+                                    type="button"
+                                >
+                                    {opt.emoji}
+                                </button>
+                            ))}
+                        </div>
+                        <p className="mt-3 text-sm font-medium text-pink-600 h-6">
+                            {rating ? RATING_OPTIONS.find(r => r.value === rating)?.label : ''}
+                        </p>
+                    </div>
 
-                  <div className={`transition-all duration-500 ${!customerName.trim() ? 'opacity-50 pointer-events-none grayscale' : 'opacity-100'}`}>
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6 mb-12">
-                      {FEEDBACK_OPTIONS.map((option) => (
-                        <OptionCard key={option.id} option={option} isSelected={selectedSourceId === option.id} onClick={() => setSelectedSourceId(option.id)} />
-                      ))}
-                    </div>
-                    {selectedSourceId === 'other' && (
-                      <div className="max-w-xl mx-auto mb-10">
-                        <input type="text" value={otherText} onChange={(e) => setOtherText(e.target.value)} placeholder="Please specify..." className="w-full px-5 py-4 rounded-xl border-2 border-indigo-100 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 outline-none transition-all shadow-sm text-lg" autoFocus />
-                      </div>
-                    )}
-                    <div className="flex justify-center mb-8">
-                      <button onClick={handleFeedbackSubmit} disabled={!selectedSourceId || isSubmitting || !customerName.trim()} className={`relative group flex items-center justify-center gap-3 px-10 py-4 rounded-full text-lg font-bold shadow-xl transition-all duration-300 ${(!selectedSourceId || !customerName.trim()) ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-gray-900 text-white hover:bg-black hover:scale-105'}`}>
-                        {isSubmitting ? <><Loader2 className="animate-spin" /> Submitting Feedback...</> : <>Submit Feedback <ArrowRight size={20} /></>}
-                      </button>
-                    </div>
+                    <div className="flex justify-center mb-8"><button onClick={handleFeedbackSubmit} disabled={!selectedSourceId || isSubmitting || !customerName.trim() || !phoneNumber.trim() || !rating} className={`relative group flex items-center justify-center gap-3 px-10 py-4 rounded-full text-lg font-bold shadow-xl transition-all duration-300 ${(!selectedSourceId || !customerName.trim() || !phoneNumber.trim() || !rating) ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-gray-900 text-white hover:bg-black hover:scale-105'}`}>{isSubmitting ? <><Loader2 className="animate-spin" /> Submitting Feedback...</> : <>Submit Feedback <ArrowRight size={20} /></>}</button></div>
                   </div>
                 </div>
               )}
@@ -900,4 +698,3 @@ function doGet(e) {
     </script>
   </body>
 </html>
-
