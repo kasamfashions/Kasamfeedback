@@ -737,39 +737,6 @@ function doGet(e) {
                             </table>
                           </div>
                         </div>
-
-                        {/* Google Apps Script Setup Card */}
-                        <div className="bg-white p-6 rounded-2xl shadow-sm border border-blue-100">
-                          <div className="flex items-center justify-between mb-4">
-                            <div>
-                               <h3 className="font-bold text-lg text-blue-900">Google Sheets Connection</h3>
-                               <p className="text-sm text-blue-600">Required for the dashboard to display data.</p>
-                            </div>
-                            <button onClick={copyCode} className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors text-sm font-medium">
-                              {copied ? <Check size={16} /> : <Copy size={16} />}
-                              {copied ? "Copied!" : "Copy Code"}
-                            </button>
-                          </div>
-                          
-                          <div className="bg-slate-900 rounded-xl p-4 overflow-x-auto mb-4 custom-scrollbar max-h-64">
-                            <pre className="text-xs text-blue-300 font-mono whitespace-pre">{APPS_SCRIPT_CODE}</pre>
-                          </div>
-
-                          <div className="text-sm text-gray-600 space-y-2 bg-gray-50 p-4 rounded-xl">
-                            <p className="font-semibold text-gray-800">Deployment Instructions:</p>
-                            <ol className="list-decimal pl-5 space-y-1">
-                              <li>Go to <a href="https://script.google.com" target="_blank" className="text-blue-600 underline">script.google.com</a> and create a new project.</li>
-                              <li>Paste the code above into the editor (replace everything).</li>
-                              <li>Click <strong>Deploy</strong> &rarr; <strong>New Deployment</strong>.</li>
-                              <li>Select type: <strong>Web App</strong>.</li>
-                              <li>Set <strong>Execute as: Me</strong>.</li>
-                              <li>Set <strong>Who has access: Anyone</strong> (Crucial!).</li>
-                              <li>Click Deploy and copy the <strong>Web App URL</strong>.</li>
-                              <li>Paste that URL into the <code>GOOGLE_SHEET_URL</code> variable in your code.</li>
-                            </ol>
-                          </div>
-                        </div>
-
                        </div>
                     )}
 
