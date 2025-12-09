@@ -4,6 +4,9 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Kasam Fashion Store Feedback</title>
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/3531/3531744.png" />
+    
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
@@ -28,19 +31,20 @@
         50% { transform: translateY(-10px); }
         100% { transform: translateY(0px); }
       }
-      /* Custom Scrollbar for Admin */
-      ::-webkit-scrollbar {
-        width: 8px;
+      .animate-blob {
+        animation: blob 7s infinite;
       }
-      ::-webkit-scrollbar-track {
-        background: #f1f1f1;
+      @keyframes blob {
+        0% { transform: translate(0px, 0px) scale(1); }
+        33% { transform: translate(30px, -50px) scale(1.1); }
+        66% { transform: translate(-20px, 20px) scale(0.9); }
+        100% { transform: translate(0px, 0px) scale(1); }
       }
-      ::-webkit-scrollbar-thumb {
-        background: #ccc;
-        border-radius: 4px;
+      .animation-delay-2000 {
+        animation-delay: 2s;
       }
-      ::-webkit-scrollbar-thumb:hover {
-        background: #999;
+      .animation-delay-4000 {
+        animation-delay: 4s;
       }
     </style>
   <script type="importmap">
@@ -68,25 +72,24 @@
         BarChart3, Settings, Smartphone, Frame, Car, Tv, Newspaper, 
         Users, Store, Scroll, Megaphone, MessageCircle, CheckCircle2,
         ChevronDown, Download, Calendar, FileText, LogOut, Home,
-        LayoutDashboard, Trash2, User, MessageSquare
+        LayoutDashboard, Trash2, User, MessageSquare, RefreshCw
       } from 'lucide-react';
       import { GoogleGenAI } from "@google/genai";
       import { initializeApp } from 'firebase/app';
-      import { getFirestore, collection, addDoc, getDocs, query, orderBy, deleteDoc, doc } from 'firebase/firestore';
+      import { getFirestore, collection, addDoc, getDocs, query, orderBy, deleteDoc, doc, onSnapshot } from 'firebase/firestore';
 
       // --- FIREBASE CONFIGURATION ---
-      // TODO: Replace the values below with your actual Firebase project configuration
+      // Replace with your actual Firebase project configuration
       const firebaseConfig = {
-        apiKey: "AIzaSyBExPCqUUq1Br3CT7m-SRvWYzFRMirCRIU", // e.g., "AIzaSy..."
-        authDomain: "customer-feedback-901f9.firebaseapp.com", // e.g., "your-project.firebaseapp.com"
-        projectId: "customer-feedback-901f9", // e.g., "your-project"
+        apiKey: "AIzaSyBExPCqUUq1Br3CT7m-SRvWYzFRMirCRIU", 
+        authDomain: "customer-feedback-901f9.firebaseapp.com",
+        projectId: "customer-feedback-901f9", 
         storageBucket: "customer-feedback-901f9.firebasestorage.app",
         messagingSenderId: "375164981290",
         appId: "1:375164981290:web:f69fe49e1fc18b4e103353",
         measurementId: "G-7BJZE8R165"
       };
 
-      // Initialize Firebase (only if config is present)
       let db = null;
       if (firebaseConfig.apiKey) {
         try {
@@ -96,16 +99,73 @@
         } catch (error) {
           console.error("Firebase initialization failed:", error);
         }
-      } else {
-        console.warn("Firebase config missing. Using LocalStorage only.");
       }
 
-      // --- CONSTANTS & CONFIG ---
+      // --- GOOGLE SHEETS CONFIG ---
+      
+      /* 
+       * !!! IMPORTANT: GOOGLE APPS SCRIPT UPDATE REQUIRED !!!
+       * 
+       * You must update your Google Apps Script to handle 'doGet' (for reading data)
+       * and 'doPost' (for saving data). Copy/Paste the code below into script.google.com:
+       * 
+       * function doPost(e) {
+       *   var lock = LockService.getScriptLock();
+       *   lock.tryLock(10000);
+       *   try {
+       *     var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+       *     var data = JSON.parse(e.postData.contents);
+       *     if (sheet.getLastRow() === 0) {
+       *       sheet.appendRow(["ID", "Customer Name", "Location ID", "Location Name", "Source ID", "Source Label", "Other Details", "Timestamp", "Date", "Time"]);
+       *     }
+       *     var d = new Date(data.timestamp);
+       *     sheet.appendRow([
+       *       data.id, 
+       *       data.customerName, 
+       *       data.locationId, 
+       *       data.locationName, 
+       *       data.sourceId,
+       *       data.sourceLabel, 
+       *       data.otherDetails, 
+       *       data.timestamp,
+       *       d.toLocaleDateString(), 
+       *       d.toLocaleTimeString()
+       *     ]);
+       *     return ContentService.createTextOutput(JSON.stringify({ "result": "success" })).setMimeType(ContentService.MimeType.JSON);
+       *   } catch (e) {
+       *     return ContentService.createTextOutput(JSON.stringify({ "result": "error", "error": e.toString() })).setMimeType(ContentService.MimeType.JSON);
+       *   } finally {
+       *     lock.releaseLock();
+       *   }
+       * }
+       * 
+       * function doGet(e) {
+       *   var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+       *   var rows = sheet.getDataRange().getValues();
+       *   var headers = rows[0];
+       *   var data = [];
+       *   // Simple array mapping, assuming header row 1 exists
+       *   for (var i = 1; i < rows.length; i++) {
+       *     var row = rows[i];
+       *     var obj = {};
+       *     // Map columns: ID=0, Name=1, LocID=2, LocName=3, SourceID=4, SourceLabel=5, Details=6, TS=7
+       *     obj.id = row[0];
+       *     obj.customerName = row[1];
+       *     obj.locationId = row[2];
+       *     obj.locationName = row[3];
+       *     obj.sourceId = row[4];
+       *     obj.sourceLabel = row[5];
+       *     obj.otherDetails = row[6];
+       *     obj.timestamp = row[7];
+       *     data.push(obj);
+       *   }
+       *   // Return reverse order (newest first)
+       *   return ContentService.createTextOutput(JSON.stringify(data.reverse())).setMimeType(ContentService.MimeType.JSON);
+       * }
+       */
+      const GOOGLE_SHEET_URL = 'https://script.google.com/macros/s/AKfycbzinYwDibTFOPTeKVwxrQFFjkY2j1vrgzdfhhu4pP0ic5u0TrvHLJJondA_9YLDCjYz/exec'; 
 
-      const INITIAL_LOCATIONS = [
-        { id: 'HNK', name: 'HANAMKONDA' },
-        
-      ];
+      // --- CONSTANTS ---
 
       const FEEDBACK_OPTIONS = [
         { id: 'digital', label: 'Digital Marketing (FB/Insta)', icon: Smartphone, colorClass: 'from-pink-500 to-rose-500' },
@@ -120,131 +180,93 @@
         { id: 'other', label: 'Others', icon: MessageCircle, colorClass: 'from-indigo-500 to-blue-600' },
       ];
 
-      const LOCATIONS_KEY = 'fashion_store_locations';
-      const SUBMISSIONS_KEY = 'fashion_store_submissions';
-      
-      /* 
-       * TODO: Paste your Google Apps Script Web App URL here.
-       * 
-       * GOOGLE APPS SCRIPT CODE:
-       * 
-       * function doPost(e) {
-       *   var lock = LockService.getScriptLock();
-       *   lock.tryLock(10000);
-       *   try {
-       *     var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-       *     var data = JSON.parse(e.postData.contents);
-       *     if (sheet.getLastRow() === 0) {
-       *       sheet.appendRow(["ID", "Customer Name", "Location", "Source", "Details", "Date", "Time"]);
-       *     }
-       *     var d = new Date(data.timestamp);
-       *     sheet.appendRow([data.id, data.customerName, data.locationName, data.sourceLabel, data.otherDetails, d.toLocaleDateString(), d.toLocaleTimeString()]);
-       *     return ContentService.createTextOutput(JSON.stringify({ "result": "success" })).setMimeType(ContentService.MimeType.JSON);
-       *   } catch (e) {
-       *     return ContentService.createTextOutput(JSON.stringify({ "result": "error", "error": e })).setMimeType(ContentService.MimeType.JSON);
-       *   } finally {
-       *     lock.releaseLock();
-       *   }
-       * }
-       */
-      const GOOGLE_SHEET_URL = 'https://script.google.com/macros/s/AKfycbzinYwDibTFOPTeKVwxrQFFjkY2j1vrgzdfhhu4pP0ic5u0TrvHLJJondA_9YLDCjYz/exec'; 
-
       // --- SERVICES ---
 
-      // Storage Service
-      const getLocations = () => {
-        const stored = localStorage.getItem(LOCATIONS_KEY);
-        if (!stored) {
-          localStorage.setItem(LOCATIONS_KEY, JSON.stringify(INITIAL_LOCATIONS));
-          return INITIAL_LOCATIONS;
-        }
-        return JSON.parse(stored);
-      };
+      // 1. Locations Service (Firebase)
+      // We now strictly use Firebase for locations to keep config centralized.
+      const useLocations = () => {
+        const [locations, setLocations] = useState([]);
+        const [loading, setLoading] = useState(true);
 
-      const addLocationToStorage = (name) => {
-        const locations = getLocations();
-        const newLocation = {
-          id: name.toLowerCase().replace(/\s+/g, '-'),
-          name,
+        useEffect(() => {
+          if (!db) {
+            // Fallback for demo/no-wifi
+            setLocations([
+              { id: 'demo-1', name: 'Demo Location (Firebase Disconnected)' },
+            ]);
+            setLoading(false);
+            return;
+          }
+
+          const q = query(collection(db, "locations"), orderBy("name"));
+          const unsubscribe = onSnapshot(q, (snapshot) => {
+            const locs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            setLocations(locs);
+            setLoading(false);
+          });
+          return () => unsubscribe();
+        }, []);
+
+        const addLocation = async (name) => {
+          if (!db) return;
+          try {
+            await addDoc(collection(db, "locations"), { name });
+          } catch (e) { console.error("Error adding location", e); }
         };
-        const updated = [...locations, newLocation];
-        localStorage.setItem(LOCATIONS_KEY, JSON.stringify(updated));
-        return updated;
+
+        const deleteLocation = async (id) => {
+          if (!db) return;
+          try {
+            await deleteDoc(doc(db, "locations", id));
+          } catch (e) { console.error("Error deleting location", e); }
+        };
+
+        return { locations, loading, addLocation, deleteLocation };
       };
 
-      const deleteLocationFromStorage = (id) => {
-        const locations = getLocations();
-        const updated = locations.filter(l => l.id !== id);
-        localStorage.setItem(LOCATIONS_KEY, JSON.stringify(updated));
-        return updated;
-      };
-
-      // Fetch Submissions (localStorage + Firebase)
-      const fetchSubmissionsData = async () => {
-        let localData = [];
+      // 2. Submission Service (Google Sheets ONLY)
+      const saveToGoogleSheet = async (data) => {
         try {
-           const stored = localStorage.getItem(SUBMISSIONS_KEY);
-           localData = stored ? JSON.parse(stored) : [];
-        } catch (e) { console.error(e); }
-
-        if (db) {
-          try {
-            const q = query(collection(db, "submissions"), orderBy("timestamp", "desc"));
-            const querySnapshot = await getDocs(q);
-            const firebaseData = querySnapshot.docs.map(doc => ({ ...doc.data(), firebaseId: doc.id }));
-            return firebaseData; // Prioritize Firebase data if available
-          } catch (e) {
-            console.error("Error fetching from Firebase:", e);
-            return localData; // Fallback
-          }
+          // Use text/plain to avoid CORS preflight checks which GAS often fails
+          const response = await fetch(GOOGLE_SHEET_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: { 'Content-Type': 'text/plain' },
+            body: JSON.stringify(data),
+          });
+          // Since mode is no-cors, we can't check response.ok. We assume success if no network error.
+          return true;
+        } catch (error) {
+          console.error("Sheet sync failed", error);
+          return false;
         }
-        return localData;
       };
 
-      const saveSubmission = async (submission) => {
-        // 1. Local Storage (Always backup locally)
+      const fetchFromGoogleSheet = async () => {
         try {
-          const current = localStorage.getItem(SUBMISSIONS_KEY);
-          const parsed = current ? JSON.parse(current) : [];
-          const updated = [submission, ...parsed];
-          localStorage.setItem(SUBMISSIONS_KEY, JSON.stringify(updated));
-        } catch(e) { console.error("Local save failed", e); }
-
-        // 2. Firebase Firestore
-        if (db) {
-          try {
-            await addDoc(collection(db, "submissions"), submission);
-            console.log("Saved to Firestore");
-          } catch (e) {
-            console.error("Error adding document to Firestore: ", e);
-            alert("Note: Saved locally, but failed to sync to cloud. Please check connection.");
+          // Add timestamp to bypass browser cache and ensure fresh data
+          // This fixes many "NetworkError" issues caused by stale CORS headers
+          const url = `${GOOGLE_SHEET_URL}?v=${Date.now()}`;
+          const response = await fetch(url);
+          
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
           }
-        }
-
-        // 3. Google Sheets Sync (Optional legacy method)
-        if (GOOGLE_SHEET_URL) {
-          try {
-            await fetch(GOOGLE_SHEET_URL, {
-              method: 'POST',
-              mode: 'no-cors',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(submission),
-            });
-          } catch (e) {
-            console.error("Failed to sync to Google Sheet", e);
-          }
+          
+          const data = await response.json();
+          // The Apps Script returns { result: ... } or array. 
+          return Array.isArray(data) ? data : [];
+        } catch (error) {
+          console.error("Failed to fetch from sheets", error);
+          // Return empty array instead of crashing
+          return [];
         }
       };
 
-      // Gemini Service
+      // 3. AI Service
       const generateThankYouMessage = async (sourceLabel) => {
-        // Safe check for process.env in browser environment
         let apiKey = '';
-        try {
-           if (typeof process !== 'undefined' && process.env) {
-             apiKey = process.env.API_KEY;
-           }
-        } catch(e) { /* ignore */ }
+        try { if (typeof process !== 'undefined' && process.env) apiKey = process.env.API_KEY; } catch(e) {}
 
         if (!apiKey) return "Thank you! Your style is amazing.";
         
@@ -260,7 +282,48 @@
         }
       };
 
-      // --- COMPONENTS ---
+      // 4. CSV Download
+      const downloadCSV = (data) => {
+        if (!data || !data.length) return;
+        const headers = ["Date", "Time", "Customer Name", "Location", "Source", "Details"];
+        const csvContent = [
+          headers.join(","),
+          ...data.map(row => {
+            const d = new Date(row.timestamp);
+            return [
+              d.toLocaleDateString(),
+              d.toLocaleTimeString(),
+              `"${row.customerName || ''}"`,
+              `"${row.locationName || ''}"`,
+              `"${row.sourceLabel || ''}"`,
+              `"${row.otherDetails || ''}"`
+            ].join(",");
+          })
+        ].join("\n");
+
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement("a");
+        const url = URL.createObjectURL(blob);
+        link.setAttribute("href", url);
+        link.setAttribute("download", `kasam_feedback_export_${Date.now()}.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      };
+
+      // --- UI COMPONENTS ---
+
+      const Logo = ({ className }) => (
+        <div className={`flex items-center gap-2 ${className}`}>
+          <div className="">
+          </div>
+          <div>
+            <h2 className="font-bold text-lg serif-font">KASAM FASHIONS</h2>
+            
+          </div>
+        </div>
+      );
 
       const OptionCard = ({ option, isSelected, onClick }) => {
         const Icon = option.icon;
@@ -279,7 +342,6 @@
           >
             <div className={`absolute inset-0 bg-gradient-to-br ${option.colorClass} transition-opacity duration-300 ${isSelected ? 'opacity-100' : 'opacity-0'}`} />
             <div className={`relative z-10 transition-colors duration-300 w-full flex flex-col items-center ${isSelected ? 'text-white' : 'text-gray-700'}`}>
-              {/* FIXED UI: Added specific width/height and flex centering to enforce circle shape */}
               <div className={`w-16 h-16 rounded-full mb-3 flex items-center justify-center shrink-0 transition-all duration-300 ${isSelected ? 'bg-white/20' : 'bg-white/20 group-hover:bg-white'}`}>
                 <Icon size={32} strokeWidth={1.5} />
               </div>
@@ -294,18 +356,17 @@
         );
       };
 
-      // --- MAIN APP ---
+      // --- MAIN APPLICATION ---
 
       const App = () => {
-        // App View State
         const [viewMode, setViewMode] = useState('user'); // 'user' | 'admin'
-        
-        // App State
         const [step, setStep] = useState('location'); // 'location' | 'feedback' | 'success'
-        const [locations, setLocations] = useState([]);
-        const [selectedLocationId, setSelectedLocationId] = useState('');
         
-        // Feedback State
+        // Data Hooks
+        const { locations, addLocation, deleteLocation } = useLocations();
+        
+        // User Flow State
+        const [selectedLocationId, setSelectedLocationId] = useState('');
         const [customerName, setCustomerName] = useState('');
         const [selectedSourceId, setSelectedSourceId] = useState(null);
         const [otherText, setOtherText] = useState('');
@@ -315,67 +376,60 @@
         // Admin State
         const [adminPassword, setAdminPassword] = useState('');
         const [isAuthenticated, setIsAuthenticated] = useState(false);
-        const [adminTab, setAdminTab] = useState('dashboard'); // 'dashboard' | 'settings' | 'reports' | 'feedbacks'
+        const [adminTab, setAdminTab] = useState('dashboard');
+        const [submissions, setSubmissions] = useState([]);
+        const [isLoadingSubmissions, setIsLoadingSubmissions] = useState(false);
         const [newLocationName, setNewLocationName] = useState('');
         const [dashboardFilter, setDashboardFilter] = useState('all');
-        const [submissions, setSubmissions] = useState([]);
-        
-        // Reports State
         const [reportStart, setReportStart] = useState('');
         const [reportEnd, setReportEnd] = useState('');
 
-        useEffect(() => {
-          setLocations(getLocations());
-        }, []);
-
-        useEffect(() => {
-          const loadData = async () => {
-            if (viewMode === 'admin' && isAuthenticated) {
-              const data = await fetchSubmissionsData();
-              setSubmissions(data);
-            }
-          };
-          loadData();
-        }, [viewMode, isAuthenticated]);
-
-        const handleNextStep = () => {
-          if (selectedLocationId) {
-            setCustomerName(''); // Reset customer name for new entry
-            setStep('feedback');
-          }
-        };
+        // --- HANDLERS ---
 
         const handleFeedbackSubmit = async () => {
-          if (!customerName.trim()) {
-            alert("Please enter your name first!");
-            return;
-          }
+          if (!customerName.trim()) { alert("Please enter your name first!"); return; }
           if (!selectedSourceId || !selectedLocationId) return;
+          
           setIsSubmitting(true);
           
-          // Find details
           const loc = locations.find(l => l.id === selectedLocationId);
           const opt = FEEDBACK_OPTIONS.find(o => o.id === selectedSourceId);
           const label = selectedSourceId === 'other' && otherText ? `Other: ${otherText}` : opt?.label || 'Unknown';
           
-          // Save
-          await saveSubmission({
+          const submissionData = {
             id: Date.now().toString(),
             customerName: customerName.trim(),
+            locationId: selectedLocationId,
+            locationName: loc?.name || 'Unknown',
             sourceId: selectedSourceId,
             sourceLabel: label,
             otherDetails: otherText,
-            locationId: selectedLocationId,
-            locationName: loc?.name || 'Unknown',
             timestamp: new Date().toISOString()
-          });
+          };
 
-          // AI Message
+          // 1. Save to Google Sheets
+          await saveToGoogleSheet(submissionData);
+
+          // 2. Generate AI Message
           const msg = await generateThankYouMessage(label);
           setAiMessage(msg);
+          
           setIsSubmitting(false);
           setStep('success');
         };
+
+        const loadAdminData = async () => {
+          setIsLoadingSubmissions(true);
+          const data = await fetchFromGoogleSheet();
+          setSubmissions(data);
+          setIsLoadingSubmissions(false);
+        };
+
+        useEffect(() => {
+          if (viewMode === 'admin' && isAuthenticated) {
+            loadAdminData();
+          }
+        }, [viewMode, isAuthenticated]);
 
         const handleAdminLogin = () => {
           if (adminPassword === '123456') {
@@ -386,67 +440,13 @@
           }
         };
 
-        const handleAddLocation = () => {
-          if (!newLocationName.trim()) return;
-          const updated = addLocationToStorage(newLocationName);
-          setLocations(updated);
-          setNewLocationName('');
-          alert("Location added!");
-        };
-
-        const handleDeleteLocation = (id) => {
-          if (window.confirm("Are you sure you want to delete this location?")) {
-            const updated = deleteLocationFromStorage(id);
-            setLocations(updated);
-            // Reset selection if the deleted location was currently selected
-            if (selectedLocationId === id) {
-              setSelectedLocationId('');
-            }
+        const handleSoftDelete = (id) => {
+          if (window.confirm("This will remove the entry from your view temporarily, but IT WILL REMAIN in your Google Sheet. To delete permanently, please edit the Google Sheet directly.")) {
+            setSubmissions(prev => prev.filter(s => s.id !== id));
           }
         };
 
-        const handleDeleteSubmission = async (id, firebaseId) => {
-          if (!window.confirm("Are you sure you want to delete this feedback permanently?")) return;
-
-          // 1. Update State
-          const updated = submissions.filter(s => s.id !== id);
-          setSubmissions(updated);
-
-          // 2. Local Storage
-          localStorage.setItem(SUBMISSIONS_KEY, JSON.stringify(updated));
-
-          // 3. Firebase
-          if (db && firebaseId) {
-             try {
-               await deleteDoc(doc(db, "submissions", firebaseId));
-               console.log("Deleted from Firestore");
-             } catch(e) {
-               console.error("Firebase delete error", e);
-               alert("Deleted locally, but could not remove from cloud database.");
-             }
-          }
-        };
-
-        const handleDownloadReports = () => {
-          if (!reportStart || !reportEnd) {
-            alert("Please select both start and end dates.");
-            return;
-          }
-          const start = new Date(reportStart).setHours(0,0,0,0);
-          const end = new Date(reportEnd).setHours(23,59,59,999);
-          
-          const filtered = submissions.filter(s => {
-            const t = new Date(s.timestamp).getTime();
-            return t >= start && t <= end;
-          });
-
-          if (filtered.length === 0) {
-            alert("No data found for the selected period.");
-            return;
-          }
-
-          downloadCSV(filtered);
-        };
+        // --- COMPUTED DATA ---
 
         const filteredSubmissions = useMemo(() => {
           if (dashboardFilter === 'all') return submissions;
@@ -461,18 +461,36 @@
           return Object.entries(s).sort((a, b) => b[1] - a[1]);
         }, [filteredSubmissions]);
 
-        // --- RENDER: ADMIN VIEW ---
-        
+        // --- RENDER: SUCCESS SCREEN ---
+        if (step === 'success') {
+          return (
+            <div className="min-h-screen relative overflow-hidden bg-cover bg-center flex items-center justify-center p-4"
+                 style={{ backgroundImage: 'url("https://images.unsplash.com/photo-1490481651871-ab68de25d43d?q=80&w=2070&auto=format&fit=crop")' }}>
+              <div className="absolute inset-0 bg-black/40 backdrop-blur-sm"></div>
+              <div className="glass-panel max-w-lg w-full rounded-3xl p-10 text-center relative z-10 animate-float shadow-2xl">
+                <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6 text-green-600">
+                   <ShoppingBag size={40} />
+                </div>
+                <h2 className="text-3xl md:text-4xl font-bold mb-4 text-gray-800 serif-font">Thank You!</h2>
+                <div className="h-1 w-20 bg-pink-500 mx-auto mb-6 rounded-full"></div>
+                <p className="text-xl text-gray-700 italic font-medium leading-relaxed mb-8">"{aiMessage}"</p>
+                <button onClick={() => { setStep('location'); setSelectedSourceId(null); setOtherText(''); }} className="text-sm text-black hover:text-black-200 underline">Return to Home</button>
+              </div>
+            </div>
+          );
+        }
+
+        // --- RENDER: ADMIN SCREEN ---
         if (viewMode === 'admin') {
           if (!isAuthenticated) {
             return (
-              <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
+              <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4 font-sans">
                 <div className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md text-center">
-                  <div className="w-16 h-16 bg-black text-white rounded-full flex items-center justify-center mx-auto mb-6">
+                  <div className="w-16 h-16 bg-gray-900 text-white rounded-full flex items-center justify-center mx-auto mb-6">
                     <Lock size={32} />
                   </div>
-                  <h2 className="text-2xl font-bold mb-2">Admin Access</h2>
-                  <p className="text-gray-500 mb-6">Please verify your identity to continue.</p>
+                  <h2 className="text-2xl font-bold mb-2">Admin Portal</h2>
+                  <p className="text-gray-500 mb-6">Access dashboard and reports</p>
                   <input 
                     type="password" 
                     value={adminPassword} 
@@ -492,355 +510,279 @@
 
           return (
             <div className="min-h-screen bg-gray-100 flex flex-col md:flex-row font-sans text-gray-800">
-              {/* Sidebar */}
-              <aside className="w-full md:w-64 bg-white border-r shadow-sm flex-none z-10">
+              {/* Admin Sidebar */}
+              <aside className="w-full md:w-64 bg-white border-r shadow-sm flex-none z-10 flex flex-col h-screen sticky top-0">
                 <div className="p-6 border-b flex items-center justify-between">
-                   <h1 className="text-xl font-bold tracking-tight">Admin Panel</h1>
+                   <Logo />
                    <button onClick={() => setViewMode('user')} className="md:hidden p-2 text-gray-500"><X size={20} /></button>
                 </div>
-                <nav className="p-4 space-y-2">
-                  <button 
-                    onClick={() => setAdminTab('dashboard')}
-                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${adminTab === 'dashboard' ? 'bg-black text-white' : 'text-gray-600 hover:bg-gray-100'}`}
-                  >
-                    <LayoutDashboard size={18} /> Dashboard
-                  </button>
-                  <button 
-                    onClick={() => setAdminTab('feedbacks')}
-                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${adminTab === 'feedbacks' ? 'bg-black text-white' : 'text-gray-600 hover:bg-gray-100'}`}
-                  >
-                    <MessageSquare size={18} /> Feedbacks
-                  </button>
-                  <button 
-                    onClick={() => setAdminTab('settings')}
-                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${adminTab === 'settings' ? 'bg-black text-white' : 'text-gray-600 hover:bg-gray-100'}`}
-                  >
-                    <Settings size={18} /> Locations
-                  </button>
-                  <button 
-                    onClick={() => setAdminTab('reports')}
-                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${adminTab === 'reports' ? 'bg-black text-white' : 'text-gray-600 hover:bg-gray-100'}`}
-                  >
-                    <FileText size={18} /> Reports
-                  </button>
+                <nav className="p-4 space-y-2 flex-1">
+                  {[
+                    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+                    { id: 'feedbacks', label: 'Feedbacks', icon: MessageSquare },
+                    { id: 'reports', label: 'Reports', icon: FileText },
+                    { id: 'settings', label: 'Locations', icon: Settings },
+                  ].map(tab => (
+                    <button 
+                      key={tab.id}
+                      onClick={() => setAdminTab(tab.id)}
+                      className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${adminTab === tab.id ? 'bg-black text-white' : 'text-gray-600 hover:bg-gray-100'}`}
+                    >
+                      <tab.icon size={18} /> {tab.label}
+                    </button>
+                  ))}
                 </nav>
-                <div className="p-4 mt-auto border-t">
-                  <button onClick={() => { setIsAuthenticated(false); setViewMode('user'); }} className="w-full flex items-center gap-2 text-gray-500 hover:text-red-600 px-4 py-2">
+                <div className="p-4 border-t bg-gray-50">
+                   <div className="text-xs text-gray-500 mb-2">Data Source: Google Sheets</div>
+                   <button onClick={() => { setIsAuthenticated(false); setViewMode('user'); }} className="w-full flex items-center gap-2 text-red-600 hover:bg-red-50 px-4 py-2 rounded-lg transition-colors">
                     <LogOut size={16} /> Logout
                   </button>
                 </div>
               </aside>
 
-              {/* Main Content */}
+              {/* Admin Content */}
               <main className="flex-1 overflow-y-auto p-4 md:p-8">
-                
-                {/* DASHBOARD TAB */}
-                {adminTab === 'dashboard' && (
-                  <div className="max-w-5xl mx-auto animate-fadeIn">
-                    <header className="flex justify-between items-center mb-8">
-                      <div>
-                         <h2 className="text-2xl font-bold">Analytics Overview</h2>
-                         <p className="text-gray-500">Track customer feedback sources</p>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <select value={dashboardFilter} onChange={e => setDashboardFilter(e.target.value)} className="bg-white border rounded-lg px-4 py-2 shadow-sm text-sm">
-                          <option value="all">All Locations</option>
-                          {locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
-                        </select>
-                      </div>
-                    </header>
+                {/* Header Filter */}
+                <div className="flex justify-between items-center mb-8">
+                  <div>
+                    <h2 className="text-2xl font-bold capitalize">{adminTab}</h2>
+                    <p className="text-gray-500 text-sm">Real-time data from Google Sheets</p>
+                  </div>
+                  {adminTab !== 'settings' && (
+                     <div className="flex gap-2">
+                       <button onClick={loadAdminData} className="p-2 bg-white border rounded-lg hover:bg-gray-50 text-gray-600" title="Refresh Data">
+                         <RefreshCw size={20} className={isLoadingSubmissions ? 'animate-spin' : ''} />
+                       </button>
+                       <select value={dashboardFilter} onChange={e => setDashboardFilter(e.target.value)} className="bg-white border rounded-lg px-4 py-2 shadow-sm text-sm outline-none focus:ring-1 focus:ring-black">
+                        <option value="all">All Locations</option>
+                        {locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+                      </select>
+                     </div>
+                  )}
+                </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                      <div className="bg-white p-6 rounded-2xl shadow-sm border">
-                         <p className="text-sm text-gray-500 mb-1">Total Feedbacks</p>
-                         <p className="text-3xl font-bold">{filteredSubmissions.length}</p>
-                      </div>
-                      <div className="bg-white p-6 rounded-2xl shadow-sm border">
-                         <p className="text-sm text-gray-500 mb-1">Top Source</p>
-                         <p className="text-3xl font-bold truncate">{stats.length > 0 ? stats[0][0] : '-'}</p>
-                      </div>
-                      <div className="bg-white p-6 rounded-2xl shadow-sm border">
-                         <p className="text-sm text-gray-500 mb-1">Active Location</p>
-                         <p className="text-3xl font-bold truncate">{dashboardFilter === 'all' ? 'All' : locations.find(l => l.id === dashboardFilter)?.name}</p>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                      <div className="bg-white p-6 rounded-2xl shadow-sm border">
-                        <h3 className="font-bold text-lg mb-6 flex items-center gap-2"><BarChart3 size={20} /> Source Breakdown</h3>
-                        <div className="space-y-4">
-                          {stats.map(([label, count]) => (
-                            <div key={label}>
-                              <div className="flex justify-between text-sm mb-2 font-medium">
-                                <span>{label}</span>
-                                <span className="text-gray-600">{count} ({Math.round((count / filteredSubmissions.length) * 100)}%)</span>
-                              </div>
-                              <div className="w-full bg-gray-100 rounded-full h-3">
-                                <div className="bg-black h-3 rounded-full" style={{ width: `${(count / filteredSubmissions.length) * 100}%` }}></div>
-                              </div>
-                            </div>
-                          ))}
-                          {stats.length === 0 && <p className="text-gray-400 text-center py-4">No data available.</p>}
+                {isLoadingSubmissions && adminTab !== 'settings' ? (
+                  <div className="flex justify-center py-20"><Loader2 className="animate-spin text-gray-400" size={40} /></div>
+                ) : (
+                  <>
+                    {/* DASHBOARD */}
+                    {adminTab === 'dashboard' && (
+                      <div className="max-w-6xl mx-auto space-y-6 animate-fadeIn">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                          <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                             <p className="text-sm text-gray-500 mb-1">Total Submissions</p>
+                             <p className="text-4xl font-bold">{filteredSubmissions.length}</p>
+                          </div>
+                          <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                             <p className="text-sm text-gray-500 mb-1">Top Source</p>
+                             <p className="text-4xl font-bold truncate text-pink-600">{stats.length > 0 ? stats[0][0] : '-'}</p>
+                          </div>
+                          <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                             <p className="text-sm text-gray-500 mb-1">Latest Feedback</p>
+                             <p className="text-sm font-medium mt-2">{filteredSubmissions[0] ? new Date(filteredSubmissions[0].timestamp).toLocaleString() : 'N/A'}</p>
+                          </div>
                         </div>
-                      </div>
 
-                      <div className="bg-white p-6 rounded-2xl shadow-sm border flex flex-col h-[500px]">
-                        <h3 className="font-bold text-lg mb-6">Recent Activity</h3>
-                        <div className="flex-1 overflow-y-auto pr-2 space-y-3">
-                          {filteredSubmissions.slice(0, 20).map((sub, i) => (
-                            <div key={i} className="p-4 bg-gray-50 rounded-xl border hover:border-gray-300 transition-colors flex justify-between items-center group">
-                              <div>
-                                <div className="flex justify-between items-start mb-2">
-                                  <span className="font-bold text-gray-900">{sub.customerName || 'Anonymous'}</span>
-                                  <span className="text-xs text-gray-500 ml-2">{new Date(sub.timestamp).toLocaleDateString()}</span>
-                                </div>
-                                <div className="flex items-center gap-2 text-xs text-gray-600 mb-2">
-                                  <MapPin size={12} /> {sub.locationName} &bull; <span className="font-medium text-black">{sub.sourceLabel}</span>
-                                </div>
-                                {sub.otherDetails && (
-                                  <div className="text-sm text-indigo-600 bg-indigo-50 p-2 rounded-lg mt-1 italic">
-                                    "{sub.otherDetails}"
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                           <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                            <h3 className="font-bold text-lg mb-6 flex items-center gap-2"><BarChart3 size={20} /> Sources Breakdown</h3>
+                            <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                              {stats.map(([label, count]) => (
+                                <div key={label}>
+                                  <div className="flex justify-between text-sm mb-2 font-medium">
+                                    <span>{label}</span>
+                                    <span className="text-gray-600">{count} ({Math.round((count / filteredSubmissions.length) * 100)}%)</span>
                                   </div>
-                                )}
-                              </div>
-                              <button 
-                                onClick={() => handleDeleteSubmission(sub.id, sub.firebaseId)}
-                                className="text-gray-300 hover:text-red-500 hover:bg-red-50 p-2 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
-                                title="Delete"
-                              >
-                                <Trash2 size={16} />
-                              </button>
+                                  <div className="w-full bg-gray-100 rounded-full h-2">
+                                    <div className="bg-gradient-to-r from-pink-500 to-purple-600 h-2 rounded-full" style={{ width: `${(count / filteredSubmissions.length) * 100}%` }}></div>
+                                  </div>
+                                </div>
+                              ))}
+                              {stats.length === 0 && <p className="text-gray-400 text-center py-4">No data available.</p>}
                             </div>
-                          ))}
-                          {filteredSubmissions.length === 0 && <p className="text-gray-400 text-center py-4">No recent activity.</p>}
+                          </div>
+                           <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col">
+                            <h3 className="font-bold text-lg mb-6">Recent Comments</h3>
+                            <div className="flex-1 overflow-y-auto pr-2 space-y-3 max-h-[400px] custom-scrollbar">
+                              {filteredSubmissions.filter(s => s.otherDetails).slice(0, 10).map((sub, i) => (
+                                <div key={i} className="p-4 bg-gray-50 rounded-xl border hover:border-gray-300 transition-colors">
+                                  <div className="flex justify-between items-start mb-2">
+                                    <span className="font-bold text-sm text-gray-900">{sub.customerName}</span>
+                                    <span className="text-[10px] text-gray-400 bg-white px-2 py-1 rounded border">{new Date(sub.timestamp).toLocaleDateString()}</span>
+                                  </div>
+                                  <p className="text-sm text-gray-600 italic">"{sub.otherDetails}"</p>
+                                </div>
+                              ))}
+                              {filteredSubmissions.filter(s => s.otherDetails).length === 0 && <p className="text-gray-400 text-center py-4">No specific comments found.</p>}
+                            </div>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </div>
-                )}
+                    )}
 
-                {/* FEEDBACKS MANAGEMENT TAB */}
-                {adminTab === 'feedbacks' && (
-                  <div className="max-w-5xl mx-auto animate-fadeIn">
-                     <header className="flex justify-between items-center mb-8">
-                      <div>
-                         <h2 className="text-2xl font-bold">Manage Feedbacks</h2>
-                         <p className="text-gray-500">View and delete customer submissions</p>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <select value={dashboardFilter} onChange={e => setDashboardFilter(e.target.value)} className="bg-white border rounded-lg px-4 py-2 shadow-sm text-sm">
-                          <option value="all">All Locations</option>
-                          {locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
-                        </select>
-                      </div>
-                    </header>
+                    {/* FEEDBACKS TABLE */}
+                    {adminTab === 'feedbacks' && (
+                       <div className="bg-white rounded-2xl shadow-sm border overflow-hidden animate-fadeIn">
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-left border-collapse">
+                              <thead className="bg-gray-50 border-b">
+                                <tr>
+                                  <th className="p-4 font-semibold text-gray-600 text-sm">Date</th>
+                                  <th className="p-4 font-semibold text-gray-600 text-sm">Customer</th>
+                                  <th className="p-4 font-semibold text-gray-600 text-sm">Location</th>
+                                  <th className="p-4 font-semibold text-gray-600 text-sm">Source</th>
+                                  <th className="p-4 font-semibold text-gray-600 text-sm">Details</th>
+                                  <th className="p-4 font-semibold text-gray-600 text-sm text-right">Action</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y">
+                                {filteredSubmissions.map((sub, idx) => (
+                                  <tr key={idx} className="hover:bg-gray-50">
+                                    <td className="p-4 text-sm text-gray-500">
+                                      {new Date(sub.timestamp).toLocaleDateString()}
+                                      <div className="text-xs text-gray-400">{new Date(sub.timestamp).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div>
+                                    </td>
+                                    <td className="p-4 font-medium text-sm">{sub.customerName}</td>
+                                    <td className="p-4 text-sm text-gray-600">{sub.locationName}</td>
+                                    <td className="p-4 text-sm"><span className="bg-blue-50 text-blue-700 px-2 py-1 rounded text-xs font-semibold">{sub.sourceLabel}</span></td>
+                                    <td className="p-4 text-sm text-gray-500 max-w-xs truncate">{sub.otherDetails || '-'}</td>
+                                    <td className="p-4 text-right">
+                                      <button onClick={() => handleSoftDelete(sub.id)} className="text-gray-400 hover:text-red-600 p-2" title="Hide from view">
+                                        <Trash2 size={16} />
+                                      </button>
+                                    </td>
+                                  </tr>
+                                ))}
+                                {filteredSubmissions.length === 0 && <tr><td colSpan="6" className="p-8 text-center text-gray-400">No data found.</td></tr>}
+                              </tbody>
+                            </table>
+                          </div>
+                       </div>
+                    )}
 
-                    <div className="bg-white rounded-2xl shadow-sm border overflow-hidden">
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-left border-collapse">
-                          <thead className="bg-gray-50 border-b">
-                            <tr>
-                              <th className="p-4 font-semibold text-gray-600 text-sm">Date</th>
-                              <th className="p-4 font-semibold text-gray-600 text-sm">Customer</th>
-                              <th className="p-4 font-semibold text-gray-600 text-sm">Location</th>
-                              <th className="p-4 font-semibold text-gray-600 text-sm">Source</th>
-                              <th className="p-4 font-semibold text-gray-600 text-sm">Details</th>
-                              <th className="p-4 font-semibold text-gray-600 text-sm text-right">Action</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y">
-                            {filteredSubmissions.map(sub => (
-                              <tr key={sub.id} className="hover:bg-gray-50">
-                                <td className="p-4 text-sm whitespace-nowrap text-gray-500">
-                                  {new Date(sub.timestamp).toLocaleDateString()}
-                                  <div className="text-xs text-gray-400">{new Date(sub.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
-                                </td>
-                                <td className="p-4 font-medium">{sub.customerName || 'Anonymous'}</td>
-                                <td className="p-4 text-sm">{sub.locationName}</td>
-                                <td className="p-4 text-sm">
-                                  <span className="inline-block px-2 py-1 bg-gray-100 rounded text-xs font-semibold">{sub.sourceLabel}</span>
-                                </td>
-                                <td className="p-4 text-sm text-gray-600 max-w-xs truncate">{sub.otherDetails || '-'}</td>
-                                <td className="p-4 text-right">
-                                  <button 
-                                    onClick={() => handleDeleteSubmission(sub.id, sub.firebaseId)}
-                                    className="text-gray-400 hover:text-red-600 hover:bg-red-50 p-2 rounded-lg transition-colors"
-                                    title="Delete Submission"
-                                  >
-                                    <Trash2 size={18} />
-                                  </button>
-                                </td>
-                              </tr>
-                            ))}
-                            {filteredSubmissions.length === 0 && (
+                    {/* LOCATIONS (FIREBASE) */}
+                    {adminTab === 'settings' && (
+                       <div className="max-w-3xl mx-auto animate-fadeIn">
+                        <div className="bg-white p-6 rounded-2xl shadow-sm border mb-6">
+                          <h3 className="font-bold text-lg mb-4">Add Store Location</h3>
+                          <div className="flex gap-3">
+                            <input 
+                              type="text" 
+                              value={newLocationName} 
+                              onChange={e => setNewLocationName(e.target.value)} 
+                              placeholder="e.g. Hanamkonda" 
+                              className="flex-1 border rounded-xl px-4 py-3 focus:ring-2 focus:ring-black outline-none"
+                            />
+                            <button onClick={() => { if(newLocationName) { addLocation(newLocationName); setNewLocationName(''); } }} className="bg-black text-white px-6 rounded-xl font-medium hover:bg-gray-800 transition-colors">
+                              Add
+                            </button>
+                          </div>
+                          <p className="text-xs text-gray-400 mt-2">Stored securely in Firebase Firestore.</p>
+                        </div>
+
+                        <div className="bg-white rounded-2xl shadow-sm border overflow-hidden">
+                          <table className="w-full text-left">
+                            <thead className="bg-gray-50 border-b">
                               <tr>
-                                <td colSpan="6" className="p-8 text-center text-gray-400">No feedbacks found.</td>
+                                <th className="p-4 text-sm font-semibold text-gray-600">Location Name</th>
+                                <th className="p-4 text-sm font-semibold text-gray-600 text-right">Action</th>
                               </tr>
-                            )}
-                          </tbody>
-                        </table>
+                            </thead>
+                            <tbody className="divide-y">
+                              {locations.map(loc => (
+                                <tr key={loc.id} className="hover:bg-gray-50">
+                                  <td className="p-4 font-medium">{loc.name}</td>
+                                  <td className="p-4 text-right">
+                                    <button onClick={() => deleteLocation(loc.id)} className="text-red-500 hover:text-red-700 hover:bg-red-50 px-3 py-1.5 rounded text-sm transition-colors flex items-center gap-1 ml-auto">
+                                      <Trash2 size={14} /> Remove
+                                    </button>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                       </div>
+                    )}
+
+                    {/* REPORTS */}
+                    {adminTab === 'reports' && (
+                      <div className="max-w-2xl mx-auto animate-fadeIn">
+                         <div className="bg-white p-8 rounded-2xl shadow-sm border">
+                            <div className="flex items-center gap-4 mb-6">
+                              <div className="p-3 bg-green-100 text-green-700 rounded-xl"><FileText size={24} /></div>
+                              <div>
+                                <h3 className="font-bold text-lg">Export CSV Report</h3>
+                                <p className="text-gray-500 text-sm">Download raw data processed from Google Sheets.</p>
+                              </div>
+                            </div>
+                            
+                            <div className="grid grid-cols-2 gap-4 mb-6">
+                              <div>
+                                <label className="block text-sm font-bold mb-2">Start Date</label>
+                                <input type="date" value={reportStart} onChange={e => setReportStart(e.target.value)} className="w-full border rounded-xl px-4 py-3" />
+                              </div>
+                              <div>
+                                <label className="block text-sm font-bold mb-2">End Date</label>
+                                <input type="date" value={reportEnd} onChange={e => setReportEnd(e.target.value)} className="w-full border rounded-xl px-4 py-3" />
+                              </div>
+                            </div>
+
+                            <button 
+                              onClick={() => {
+                                if(!reportStart || !reportEnd) return alert("Select dates.");
+                                const start = new Date(reportStart).setHours(0,0,0,0);
+                                const end = new Date(reportEnd).setHours(23,59,59,999);
+                                const data = submissions.filter(s => {
+                                  const t = new Date(s.timestamp).getTime();
+                                  return t >= start && t <= end;
+                                });
+                                if(data.length === 0) return alert("No data in range.");
+                                downloadCSV(data);
+                              }}
+                              className="w-full bg-black text-white py-4 rounded-xl font-bold hover:bg-gray-800 flex justify-center gap-2"
+                            >
+                              <Download size={20} /> Download CSV
+                            </button>
+                         </div>
                       </div>
-                    </div>
-                  </div>
+                    )}
+                  </>
                 )}
-
-                {/* LOCATIONS TAB */}
-                {adminTab === 'settings' && (
-                  <div className="max-w-3xl mx-auto animate-fadeIn">
-                    <h2 className="text-2xl font-bold mb-2">Location Management</h2>
-                    <p className="text-gray-500 mb-8">Add or remove store locations from the selection list.</p>
-
-                    <div className="bg-white p-6 rounded-2xl shadow-sm border mb-8">
-                      <label className="block text-sm font-medium mb-2">Add New Location</label>
-                      <div className="flex gap-3">
-                        <input 
-                          type="text" 
-                          value={newLocationName} 
-                          onChange={e => setNewLocationName(e.target.value)} 
-                          placeholder="e.g. Austin - Domain" 
-                          className="flex-1 border rounded-xl px-4 py-3 focus:ring-2 focus:ring-black focus:outline-none"
-                        />
-                        <button onClick={handleAddLocation} className="bg-black text-white px-6 py-3 rounded-xl font-medium hover:bg-gray-800 transition-colors flex items-center gap-2">
-                          <Plus size={20} /> Add
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="bg-white rounded-2xl shadow-sm border overflow-hidden">
-                      <table className="w-full text-left border-collapse">
-                        <thead className="bg-gray-50 border-b">
-                          <tr>
-                            <th className="p-4 font-semibold text-gray-600 text-sm">Location Name</th>
-                            <th className="p-4 font-semibold text-gray-600 text-sm">ID</th>
-                            <th className="p-4 font-semibold text-gray-600 text-sm text-right">Actions</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y">
-                          {locations.map(loc => (
-                            <tr key={loc.id} className="hover:bg-gray-50">
-                              <td className="p-4 font-medium">{loc.name}</td>
-                              <td className="p-4 text-sm text-gray-500 font-mono">{loc.id}</td>
-                              <td className="p-4 text-right">
-                                <button 
-                                  onClick={() => handleDeleteLocation(loc.id)}
-                                  className="text-sm text-red-500 hover:text-red-700 hover:bg-red-50 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1 ml-auto"
-                                >
-                                  <Trash2 size={16} /> Remove
-                                </button>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                )}
-
-                {/* REPORTS TAB */}
-                {adminTab === 'reports' && (
-                  <div className="max-w-3xl mx-auto animate-fadeIn">
-                    <h2 className="text-2xl font-bold mb-2">Data Reports</h2>
-                    <p className="text-gray-500 mb-8">Export feedback data for analysis.</p>
-
-                    <div className="bg-white p-8 rounded-2xl shadow-sm border mb-8">
-                      <div className="flex items-start gap-4 mb-6">
-                        <div className="p-3 bg-green-100 text-green-700 rounded-xl">
-                          <FileText size={24} />
-                        </div>
-                        <div>
-                          <h3 className="font-bold text-lg">Export CSV</h3>
-                          <p className="text-gray-500 text-sm">Download all feedback submissions within a specific date range.</p>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                        <div>
-                          <label className="block text-sm font-semibold mb-2 text-gray-700">Start Date</label>
-                          <div className="relative">
-                            <input 
-                              type="date" 
-                              value={reportStart}
-                              onChange={e => setReportStart(e.target.value)}
-                              className="w-full border rounded-xl px-4 py-3 focus:ring-2 focus:ring-black focus:outline-none"
-                            />
-                            <Calendar className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={18} />
-                          </div>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-semibold mb-2 text-gray-700">End Date</label>
-                          <div className="relative">
-                            <input 
-                              type="date" 
-                              value={reportEnd}
-                              onChange={e => setReportEnd(e.target.value)}
-                              className="w-full border rounded-xl px-4 py-3 focus:ring-2 focus:ring-black focus:outline-none"
-                            />
-                            <Calendar className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={18} />
-                          </div>
-                        </div>
-                      </div>
-
-                      <button 
-                        onClick={handleDownloadReports}
-                        className="w-full bg-black text-white py-4 rounded-xl font-bold hover:bg-gray-900 transition-all flex items-center justify-center gap-2"
-                      >
-                        <Download size={20} /> Download CSV Report
-                      </button>
-                    </div>
-                  </div>
-                )}
-
               </main>
             </div>
           );
         }
 
-        // --- RENDER: USER VIEW (EXISTING FLOW) ---
-        
-        if (step === 'success') {
-          return (
-            <div className="min-h-screen relative overflow-hidden bg-cover bg-center flex items-center justify-center p-4"
-                 style={{ backgroundImage: 'url("https://images.unsplash.com/photo-1490481651871-ab68de25d43d?q=80&w=2070&auto=format&fit=crop")' }}>
-              <div className="absolute inset-0 bg-black/40 backdrop-blur-sm"></div>
-              <div className="glass-panel max-w-lg w-full rounded-3xl p-10 text-center relative z-10 animate-float shadow-2xl">
-                <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6 text-green-600">
-                   <ShoppingBag size={40} />
-                </div>
-                <h2 className="text-3xl md:text-4xl font-bold mb-4 text-gray-800 serif-font">Thank You!</h2>
-                <div className="h-1 w-20 bg-pink-500 mx-auto mb-6 rounded-full"></div>
-                <p className="text-xl text-gray-700 italic font-medium leading-relaxed mb-8">"{aiMessage}"</p>
-                <button onClick={() => { setStep('location'); setSelectedSourceId(null); setOtherText(''); }} className="text-sm text-black hover:text-black-200 underline">Return to Home</button>
-              </div>
-            </div>
-          );
-        }
-
+        // --- RENDER: USER SCREEN ---
         return (
           <div className="min-h-screen relative bg-gray-50 font-sans">
-            {/* Background Decor */}
+             {/* Background Decor */}
             <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none">
               <div className="absolute -top-[10%] -right-[10%] w-[50vw] h-[50vw] bg-pink-200/40 rounded-full blur-3xl mix-blend-multiply filter opacity-70 animate-blob"></div>
               <div className="absolute top-[20%] -left-[10%] w-[50vw] h-[50vw] bg-purple-200/40 rounded-full blur-3xl mix-blend-multiply filter opacity-70 animate-blob animation-delay-2000"></div>
               <div className="absolute -bottom-[10%] left-[20%] w-[50vw] h-[50vw] bg-yellow-200/40 rounded-full blur-3xl mix-blend-multiply filter opacity-70 animate-blob animation-delay-4000"></div>
             </div>
 
-            {/* Admin Button */}
-            <div className="fixed top-4 right-4 z-50">
-              <button onClick={() => setViewMode('admin')} className="p-3 bg-white/20 hover:bg-white/40 backdrop-blur-md rounded-full text-gray-700 hover:text-gray-900 transition-all border border-white/30 shadow-lg">
-                <Lock size={20} />
+            {/* Header / Nav */}
+            <div className="relative z-50 flex justify-between items-center p-6 container mx-auto max-w-6xl">
+              <Logo />
+              <button onClick={() => setViewMode('admin')} className="p-2 bg-white/50 hover:bg-white rounded-full transition-colors backdrop-blur-md border border-white/40 shadow-sm text-gray-700">
+                <Lock size={18} />
               </button>
             </div>
 
-            <div className="relative z-10 container mx-auto px-4 py-8 md:py-12 max-w-6xl min-h-screen flex flex-col">
-              <header className="text-center mb-10 flex-none">
+            {/* Content */}
+            <div className="relative z-10 container mx-auto px-4 py-4 md:py-8 max-w-6xl min-h-[80vh] flex flex-col">
+               <header className="text-center mb-10 flex-none">
                 <div className="inline-block p-3 rounded-full bg-white/80 shadow-sm mb-4 backdrop-blur-sm">
                   <span className="text-xs font-bold tracking-widest text-pink-600 uppercase px-2">
-                    {step === 'location' ? 'Welcome, Kasam Fashions Private Limited' : locations.find(l => l.id === selectedLocationId)?.name}
+                    {step === 'location' ? 'Welcome Customer' : locations.find(l => l.id === selectedLocationId)?.name}
                   </span>
                 </div>
-                <h1 className="text-4xl md:text-6xl font-bold text-gray-900 serif-font mt-4 leading-tight">
+                <h1 className="text-4xl md:text-6xl font-bold text-gray-900 serif-font mt-2 leading-tight">
                   {step === 'location' ? (
-                    <>Select Your <span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-600 to-purple-600">Store Location</span></>
+                    <>Select Your <span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-600 to-purple-600">Store</span></>
                   ) : (
                     <>We value your <span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-600 to-purple-600">Feedback</span></>
                   )}
@@ -848,10 +790,9 @@
               </header>
 
               {step === 'location' && (
-                <div className="flex-1 flex flex-col items-center justify-center animate-fadeIn">
+                <div className="flex-1 flex flex-col items-center justify-center animate-fadeIn pb-20">
                   <div className="w-full max-w-md bg-white/30 backdrop-blur-lg border border-white/50 rounded-3xl p-8 shadow-2xl">
-                    <label className="block text-gray-700 font-semibold mb-4 text-center">Choose Location to submit the Feedback</label>
-                    
+                    <label className="block text-gray-700 font-semibold mb-4 text-center">Where are you shopping today?</label>
                     <div className="relative mb-8">
                       <select 
                         value={selectedLocationId}
@@ -863,13 +804,10 @@
                           <option key={loc.id} value={loc.id}>{loc.name}</option>
                         ))}
                       </select>
-                      <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-gray-500">
-                        <ChevronDown size={24} />
-                      </div>
+                      <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-gray-500"><ChevronDown size={24} /></div>
                     </div>
-
                     <button
-                      onClick={handleNextStep}
+                      onClick={() => { if(selectedLocationId) { setCustomerName(''); setStep('feedback'); } }}
                       disabled={!selectedLocationId}
                       className={`w-full py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 transition-all duration-300 ${selectedLocationId ? 'bg-black text-white hover:scale-[1.02] shadow-xl' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`}
                     >
@@ -880,12 +818,11 @@
               )}
 
               {step === 'feedback' && (
-                <div className="flex-1 animate-slideUp">
-                   <button onClick={() => setStep('location')} className="mb-6 flex items-center gap-2 text-gray-500 hover:text-gray-900 transition-colors mx-auto md:mx-0">
+                <div className="flex-1 animate-slideUp pb-20">
+                  <button onClick={() => setStep('location')} className="mb-6 flex items-center gap-2 text-gray-500 hover:text-gray-900 transition-colors mx-auto md:mx-0">
                     <ArrowRight className="rotate-180" size={16} /> Change Location
                   </button>
                   
-                  {/* Customer Name Input */}
                   <div className="max-w-xl mx-auto mb-8">
                     <div className="relative">
                       <input 
@@ -900,7 +837,6 @@
                     </div>
                   </div>
 
-                  {/* Heading added as requested */}
                   <h3 className="text-2xl font-bold text-center mb-8 mt-2 serif-font text-gray-800">
                     <>How did you hear <span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-600 to-purple-600">about us?</span></>
                   </h3>
@@ -918,7 +854,7 @@
                     )}
                     <div className="flex justify-center mb-8">
                       <button onClick={handleFeedbackSubmit} disabled={!selectedSourceId || isSubmitting || !customerName.trim()} className={`relative group flex items-center justify-center gap-3 px-10 py-4 rounded-full text-lg font-bold shadow-xl transition-all duration-300 ${(!selectedSourceId || !customerName.trim()) ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-gray-900 text-white hover:bg-black hover:scale-105'}`}>
-                        {isSubmitting ? <><Loader2 className="animate-spin" /> Processing...</> : <>Submit Feedback <ArrowRight size={20} /></>}
+                        {isSubmitting ? <><Loader2 className="animate-spin" /> Syncing to Cloud...</> : <>Submit Feedback <ArrowRight size={20} /></>}
                       </button>
                     </div>
                   </div>
