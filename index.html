@@ -342,16 +342,18 @@ function doGet(e) {
       // --- UI COMPONENTS ---
 
       const Logo = ({ className }) => (
-        <div className={`flex items-center gap-2 ${className}`}>
-          <div className="">
-          </div>
-          <div>
-            <h2 className="font-bold text-lg serif-font">KASAM FASHIONS</h2>
-            
-          </div>
-        </div>
-      );
-
+ <div className={`flex items-center gap-1 ${className}`}>
+<div className="">
+<img 
+ src="https://www.dropbox.com/scl/fi/3w8cuktwjostzrb21pafw/LOGO-2.png?rlkey=crkvpkwg128csjf52s565avoa&raw=1" 
+ alt="KASAM FASHIONS Logo" 
+  className="h-8 w-8 object-contain"/>
+</div>
+ <div>
+ <h2 className="font-bold text-lg serif-font">KASAM FASHIONS</h2>
+</div>
+ </div>
+ );
       const OptionCard = ({ option, isSelected, onClick }) => {
         const Icon = option.icon;
         return (
@@ -812,7 +814,7 @@ function doGet(e) {
                <header className="text-center mb-10 flex-none">
                 <div className="inline-block p-3 rounded-full bg-white/80 shadow-sm mb-4 backdrop-blur-sm">
                   <span className="text-xs font-bold tracking-widest text-pink-600 uppercase px-2">
-                    {step === 'location' ? 'Welcome Kasam Fashions Private Limted' : locations.find(l => l.id === selectedLocationId)?.name}
+                    {step === 'location' ? 'Welcome, Kasam Fashions Private Limted' : locations.find(l => l.id === selectedLocationId)?.name}
                   </span>
                 </div>
                 <h1 className="text-4xl md:text-6xl font-bold text-gray-900 serif-font mt-2 leading-tight">
