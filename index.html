@@ -200,29 +200,35 @@
         const [loading, setLoading] = useState(true);
 
         const CACHE_KEY = 'kasam_locations_data';
-        const CACHE_TIME_KEY = 'kasam_locations_time';
-        const CACHE_DURATION = 24 * 60 * 60 * 1000;
+        // Note: Removed time-based expiration to prioritize local storage strictly
+        // const CACHE_TIME_KEY = 'kasam_locations_time'; 
+        // const CACHE_DURATION = 24 * 60 * 60 * 1000;
 
         const fetchLocations = async (forceRefresh = false) => {
+          // If NOT forcing refresh, try reading from Local Storage FIRST.
+          if (!forceRefresh) {
+            try {
+              const cachedData = localStorage.getItem(CACHE_KEY);
+              if (cachedData) {
+                // Found data in local storage, use it and STOP.
+                // Do NOT fetch from Firebase.
+                setLocations(JSON.parse(cachedData));
+                setLoading(false);
+                return; 
+              }
+            } catch (e) { 
+              console.error("Cache access error", e); 
+            }
+          }
+
+          // If we reach here, either:
+          // 1. forceRefresh is true (e.g., clicked Refresh in Admin)
+          // 2. Local storage was empty
+          
           if (!db) {
             setLocations([{ id: 'demo-1', name: 'Demo Location (Firebase Disconnected)' }]);
             setLoading(false);
             return;
-          }
-
-          if (!forceRefresh) {
-            try {
-              const cachedData = localStorage.getItem(CACHE_KEY);
-              const cachedTime = localStorage.getItem(CACHE_TIME_KEY);
-              if (cachedData && cachedTime) {
-                const age = Date.now() - parseInt(cachedTime, 10);
-                if (age < CACHE_DURATION) {
-                  setLocations(JSON.parse(cachedData));
-                  setLoading(false);
-                  return;
-                }
-              }
-            } catch (e) { console.error("Cache access error", e); }
           }
 
           try {
@@ -230,8 +236,8 @@
             const snapshot = await getDocs(q); 
             const locs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             setLocations(locs);
+            // Save to local storage for future use
             localStorage.setItem(CACHE_KEY, JSON.stringify(locs));
-            localStorage.setItem(CACHE_TIME_KEY, Date.now().toString());
           } catch (e) {
             console.error("Error fetching locations", e);
           } finally {
@@ -245,6 +251,7 @@
           if (!db) return;
           try { 
             await addDoc(collection(db, "locations"), { name });
+            // After adding, we force refresh to update local storage
             fetchLocations(true); 
           } catch (e) { console.error("Error adding location", e); }
         };
@@ -255,12 +262,12 @@
             await deleteDoc(doc(db, "locations", id));
             const updatedLocs = locations.filter(l => l.id !== id);
             setLocations(updatedLocs);
+            // Update local storage directly to match state
             localStorage.setItem(CACHE_KEY, JSON.stringify(updatedLocs));
-            localStorage.setItem(CACHE_TIME_KEY, Date.now().toString());
           } catch (e) { console.error("Error deleting location", e); }
         };
 
-        return { locations, loading, addLocation, deleteLocation };
+        return { locations, loading, addLocation, deleteLocation, refreshLocations: fetchLocations };
       };
 
       // 2. Sheets Service
@@ -401,7 +408,7 @@
       };
 
       // AdminPanel
-      const AdminPanel = ({ isAuthenticated, setIsAuthenticated, setViewMode, locations, addLocation, deleteLocation }) => {
+      const AdminPanel = ({ isAuthenticated, setIsAuthenticated, setViewMode, locations, addLocation, deleteLocation, refreshLocations }) => {
         const [adminPassword, setAdminPassword] = useState('');
         const [adminTab, setAdminTab] = useState('dashboard');
         const [submissions, setSubmissions] = useState([]);
@@ -498,7 +505,7 @@
                 <div><h2 className="text-2xl font-bold capitalize">{adminTab}</h2><p className="text-gray-500 text-sm">Real-time data from Google Sheets</p></div>
                 {adminTab !== 'settings' && (
                   <div className="flex gap-2">
-                    <button onClick={loadAdminData} className="p-2 bg-white border rounded-lg hover:bg-gray-50 text-gray-600"><RefreshCw size={20} className={isLoadingSubmissions ? 'animate-spin' : ''} /></button>
+                    <button onClick={() => { loadAdminData(); refreshLocations(true); }} className="p-2 bg-white border rounded-lg hover:bg-gray-50 text-gray-600" title="Refresh Data & Locations"><RefreshCw size={20} className={isLoadingSubmissions ? 'animate-spin' : ''} /></button>
                     <select value={dashboardFilter} onChange={e => setDashboardFilter(e.target.value)} className="bg-white border rounded-lg px-4 py-2 shadow-sm text-sm outline-none focus:ring-1 focus:ring-black">
                       <option value="all">All Locations</option>
                       {locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
@@ -542,7 +549,7 @@
         const [viewMode, setViewMode] = useState('user');
         const [step, setStep] = useState('location');
         const [isAuthenticated, setIsAuthenticated] = useState(false);
-        const { locations, addLocation, deleteLocation } = useLocations();
+        const { locations, addLocation, deleteLocation, refreshLocations } = useLocations();
         const [selectedLocationId, setSelectedLocationId] = useState('');
         const [customerName, setCustomerName] = useState('');
         const [phoneNumber, setPhoneNumber] = useState(''); 
@@ -581,7 +588,7 @@
           setStep('success');
         };
 
-        if (viewMode === 'admin') return <AdminPanel isAuthenticated={isAuthenticated} setIsAuthenticated={setIsAuthenticated} setViewMode={setViewMode} locations={locations} addLocation={addLocation} deleteLocation={deleteLocation} />;
+        if (viewMode === 'admin') return <AdminPanel isAuthenticated={isAuthenticated} setIsAuthenticated={setIsAuthenticated} setViewMode={setViewMode} locations={locations} addLocation={addLocation} deleteLocation={deleteLocation} refreshLocations={refreshLocations} />;
 
         if (step === 'success') {
           return (
@@ -698,4 +705,3 @@
     </script>
   </body>
 </html>
-
