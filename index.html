@@ -170,8 +170,6 @@
         const [locations, setLocations] = useState([]);
         const [loading, setLoading] = useState(true);
         const isFetchingRef = useRef(false);
-
-        const CACHE_KEY = 'kasam_locations_data';
         
         const refreshLocations = async () => {
           if (isFetchingRef.current) return;
@@ -192,33 +190,19 @@
                }));
                const sorted = formatted.sort((a,b) => (a.name || '').localeCompare(b.name || ''));
                setLocations(sorted);
-               localStorage.setItem(CACHE_KEY, JSON.stringify(sorted));
+               // localStorage Removed
             }
           } catch (e) {
             console.error("Error fetching locations from Sheets", e);
-            // Fallback to cache if available
-            const cached = localStorage.getItem(CACHE_KEY);
-            if (cached) setLocations(JSON.parse(cached));
+            // Fallback removed - we want Sheets data only
           } finally {
             setLoading(false);
             isFetchingRef.current = false;
           }
         };
 
-        // Initialize: Try Local Storage FIRST.
+        // Initialize: Fetch directly from Sheet
         useEffect(() => {
-          const cachedData = localStorage.getItem(CACHE_KEY);
-          if (cachedData) {
-            try {
-              const parsed = JSON.parse(cachedData);
-              if (Array.isArray(parsed) && parsed.length > 0) {
-                  setLocations(parsed);
-                  setLoading(false);
-                  // Background refresh optional, but we'll stick to cache-first for speed
-                  return; 
-              }
-            } catch (e) { console.error(e); }
-          }
           refreshLocations();
         }, []);
 
@@ -230,7 +214,7 @@
             // Optimistic Update
             const updatedLocations = [...locations, newLocation].sort((a,b) => a.name.localeCompare(b.name));
             setLocations(updatedLocations);
-            localStorage.setItem(CACHE_KEY, JSON.stringify(updatedLocations));
+            // localStorage Removed
 
             // Sync with Sheet
             await fetch(GOOGLE_SHEET_URL, {
@@ -247,7 +231,7 @@
             // Optimistic Update
             const updatedLocs = locations.filter(l => l.id !== id);
             setLocations(updatedLocs);
-            localStorage.setItem(CACHE_KEY, JSON.stringify(updatedLocs));
+            // localStorage Removed
 
             // Sync with Sheet
             await fetch(GOOGLE_SHEET_URL, {
