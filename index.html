@@ -69,11 +69,8 @@
     "react-dom/client": "https://aistudiocdn.com/react-dom@^19.2.1/client",
     "lucide-react": "https://aistudiocdn.com/lucide-react@^0.556.0",
     "@google/genai": "https://aistudiocdn.com/@google/genai@^1.32.0",
-    "firebase/app": "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js",
-    "firebase/firestore": "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js",
     "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.1/",
-    "react/": "https://aistudiocdn.com/react@^19.2.1/",
-    "firebase/": "https://aistudiocdn.com/firebase@^12.6.0/"
+    "react/": "https://aistudiocdn.com/react@^19.2.1/"
   }
 }
 </script>
@@ -82,7 +79,7 @@
     <div id="root"></div>
 
     <script type="text/babel" data-type="module">
-      import React, { useState, useEffect, useMemo } from 'react';
+      import React, { useState, useEffect, useMemo, useRef } from 'react';
       import ReactDOM from 'react-dom/client';
       import { 
         Loader2, ShoppingBag, ArrowRight, Lock, User, ChevronDown, 
@@ -91,24 +88,9 @@
         Phone
       } from 'lucide-react';
       import { GoogleGenAI } from "@google/genai";
-      import { initializeApp } from 'firebase/app';
-      import { getFirestore, collection, addDoc, getDocs, query, orderBy, deleteDoc, doc } from 'firebase/firestore';
 
-      // --- TYPES ---
-      // (Types are elided at runtime but kept here for clarity in structure)
-      
       // --- CONSTANTS ---
-      const FIREBASE_CONFIG = {
-        apiKey: "AIzaSyBExPCqUUq1Br3CT7m-SRvWYzFRMirCRIU", 
-        authDomain: "customer-feedback-901f9.firebaseapp.com",
-        projectId: "customer-feedback-901f9", 
-        storageBucket: "customer-feedback-901f9.firebasestorage.app",
-        messagingSenderId: "375164981290",
-        appId: "1:375164981290:web:f69fe49e1fc18b4e103353",
-        measurementId: "G-7BJZE8R165"
-      };
-
-      const GOOGLE_SHEET_URL = 'https://script.google.com/macros/s/AKfycbzDZsfZySFKVkZFQ__O_OJUc8_yDe39afZ_MxN1-mSSVsjITB_zUszFbcLlkUz33aJF/exec';
+      const GOOGLE_SHEET_URL = 'https://script.google.com/macros/s/AKfycbxZ9kdKIm47ORT-pZu5R6OMkp3wHwKZRnn98W349v0MhGR_88qc6dvZMl_NHSgTpGAB/exec';
 
       const FEEDBACK_OPTIONS = [
         { 
@@ -183,95 +165,111 @@
 
       // --- SERVICES ---
 
-      // 1. Firebase Service
-      let db = null;
-      if (FIREBASE_CONFIG.apiKey) {
-        try {
-          const app = initializeApp(FIREBASE_CONFIG);
-          db = getFirestore(app);
-          console.log("Firebase initialized successfully");
-        } catch (error) {
-          console.error("Firebase initialization failed:", error);
-        }
-      }
-
+      // 1. Location Service (Replaced Firebase with Google Sheets)
       const useLocations = () => {
         const [locations, setLocations] = useState([]);
         const [loading, setLoading] = useState(true);
+        const isFetchingRef = useRef(false);
 
         const CACHE_KEY = 'kasam_locations_data';
         
-        // This function forces a fetch from Firebase and updates LocalStorage
         const refreshLocations = async () => {
-          if (!db) {
-            setLocations([{ id: 'demo-1', name: 'Demo Location (Firebase Disconnected)' }]);
-            setLoading(false);
-            return;
-          }
+          if (isFetchingRef.current) return;
+          isFetchingRef.current = true;
+          setLoading(true);
 
           try {
-            setLoading(true);
-            const q = query(collection(db, "locations"), orderBy("name"));
-            const snapshot = await getDocs(q); 
-            const locs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            setLocations(locs);
-            // Update local storage
-            localStorage.setItem(CACHE_KEY, JSON.stringify(locs));
+            // Fetch with specific action for locations
+            const response = await fetch(`${GOOGLE_SHEET_URL}?action=getLocations`, { method: 'GET', redirect: 'follow' });
+            if (!response.ok) throw new Error("Network response was not ok");
+            const data = await response.json();
+            
+            if (Array.isArray(data)) {
+               // Ensure data format is {id, name}
+               const formatted = data.map(d => ({ 
+                 id: d.id || d.name || Math.random().toString(36).substr(2, 9), 
+                 name: d.name || d 
+               }));
+               const sorted = formatted.sort((a,b) => (a.name || '').localeCompare(b.name || ''));
+               setLocations(sorted);
+               localStorage.setItem(CACHE_KEY, JSON.stringify(sorted));
+            }
           } catch (e) {
-            console.error("Error fetching locations from Firebase", e);
+            console.error("Error fetching locations from Sheets", e);
+            // Fallback to cache if available
+            const cached = localStorage.getItem(CACHE_KEY);
+            if (cached) setLocations(JSON.parse(cached));
           } finally {
             setLoading(false);
+            isFetchingRef.current = false;
           }
         };
 
-        // Initialize: Try Local Storage FIRST. Do NOT fetch from Firebase if LS has data.
+        // Initialize: Try Local Storage FIRST.
         useEffect(() => {
           const cachedData = localStorage.getItem(CACHE_KEY);
           if (cachedData) {
             try {
-              setLocations(JSON.parse(cachedData));
-              setLoading(false);
-            } catch (e) {
-              console.error("Error parsing local storage", e);
-              refreshLocations(); // Fallback if parse fails
-            }
-          } else {
-            // Only fetch from Firebase if Local Storage is empty
-            refreshLocations();
+              const parsed = JSON.parse(cachedData);
+              if (Array.isArray(parsed) && parsed.length > 0) {
+                  setLocations(parsed);
+                  setLoading(false);
+                  // Background refresh optional, but we'll stick to cache-first for speed
+                  return; 
+              }
+            } catch (e) { console.error(e); }
           }
+          refreshLocations();
         }, []);
 
         const addLocation = async (name) => {
-          if (!db) return;
           try { 
-            await addDoc(collection(db, "locations"), { name });
-            // After adding, we must sync with Firebase to get the new ID and update LS
-            await refreshLocations(); 
+            const newId = 'loc_' + Date.now();
+            const newLocation = { id: newId, name };
+            
+            // Optimistic Update
+            const updatedLocations = [...locations, newLocation].sort((a,b) => a.name.localeCompare(b.name));
+            setLocations(updatedLocations);
+            localStorage.setItem(CACHE_KEY, JSON.stringify(updatedLocations));
+
+            // Sync with Sheet
+            await fetch(GOOGLE_SHEET_URL, {
+              method: 'POST',
+              mode: 'no-cors',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ action: 'addLocation', id: newId, name })
+            });
           } catch (e) { console.error("Error adding location", e); }
         };
 
         const deleteLocation = async (id) => {
-          if (!db) return;
           try { 
-            await deleteDoc(doc(db, "locations", id));
-            // Optimistic update for speed, then update LS
+            // Optimistic Update
             const updatedLocs = locations.filter(l => l.id !== id);
             setLocations(updatedLocs);
             localStorage.setItem(CACHE_KEY, JSON.stringify(updatedLocs));
+
+            // Sync with Sheet
+            await fetch(GOOGLE_SHEET_URL, {
+              method: 'POST',
+              mode: 'no-cors',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ action: 'deleteLocation', id })
+            });
           } catch (e) { console.error("Error deleting location", e); }
         };
 
         return { locations, loading, addLocation, deleteLocation, refreshLocations };
       };
 
-      // 2. Sheets Service
+      // 2. Sheets Service (Feedback & Admin Data)
       const saveToGoogleSheet = async (data) => {
         try {
           await fetch(GOOGLE_SHEET_URL, {
             method: 'POST',
             mode: 'no-cors', 
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data),
+            body: JSON.stringify({ action: 'submitFeedback', ...data }), // Added action
           });
           return true;
         } catch (error) {
@@ -282,7 +280,8 @@
 
       const fetchFromGoogleSheet = async () => {
         try {
-          const url = `${GOOGLE_SHEET_URL}?v=${Date.now()}`;
+          // Added action to distinguish from getLocations
+          const url = `${GOOGLE_SHEET_URL}?action=getSubmissions&v=${Date.now()}`;
           const response = await fetch(url, { method: 'GET', redirect: 'follow' });
           if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
           const data = await response.json();
@@ -313,7 +312,6 @@
       // 4. CSV Utils
       const downloadCSV = (data) => {
         if (!data || !data.length) return;
-        // Added Rating to headers
         const headers = ["Date", "Time", "Customer Name", "Phone", "Location", "Source", "Details", "Rating"];
         const csvContent = [
           headers.join(","),
