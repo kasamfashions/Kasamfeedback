@@ -200,31 +200,9 @@
         const [loading, setLoading] = useState(true);
 
         const CACHE_KEY = 'kasam_locations_data';
-        // Note: Removed time-based expiration to prioritize local storage strictly
-        // const CACHE_TIME_KEY = 'kasam_locations_time'; 
-        // const CACHE_DURATION = 24 * 60 * 60 * 1000;
-
-        const fetchLocations = async (forceRefresh = false) => {
-          // If NOT forcing refresh, try reading from Local Storage FIRST.
-          if (!forceRefresh) {
-            try {
-              const cachedData = localStorage.getItem(CACHE_KEY);
-              if (cachedData) {
-                // Found data in local storage, use it and STOP.
-                // Do NOT fetch from Firebase.
-                setLocations(JSON.parse(cachedData));
-                setLoading(false);
-                return; 
-              }
-            } catch (e) { 
-              console.error("Cache access error", e); 
-            }
-          }
-
-          // If we reach here, either:
-          // 1. forceRefresh is true (e.g., clicked Refresh in Admin)
-          // 2. Local storage was empty
-          
+        
+        // This function forces a fetch from Firebase and updates LocalStorage
+        const refreshLocations = async () => {
           if (!db) {
             setLocations([{ id: 'demo-1', name: 'Demo Location (Firebase Disconnected)' }]);
             setLoading(false);
@@ -232,27 +210,43 @@
           }
 
           try {
+            setLoading(true);
             const q = query(collection(db, "locations"), orderBy("name"));
             const snapshot = await getDocs(q); 
             const locs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             setLocations(locs);
-            // Save to local storage for future use
+            // Update local storage
             localStorage.setItem(CACHE_KEY, JSON.stringify(locs));
           } catch (e) {
-            console.error("Error fetching locations", e);
+            console.error("Error fetching locations from Firebase", e);
           } finally {
             setLoading(false);
           }
         };
 
-        useEffect(() => { fetchLocations(); }, []);
+        // Initialize: Try Local Storage FIRST. Do NOT fetch from Firebase if LS has data.
+        useEffect(() => {
+          const cachedData = localStorage.getItem(CACHE_KEY);
+          if (cachedData) {
+            try {
+              setLocations(JSON.parse(cachedData));
+              setLoading(false);
+            } catch (e) {
+              console.error("Error parsing local storage", e);
+              refreshLocations(); // Fallback if parse fails
+            }
+          } else {
+            // Only fetch from Firebase if Local Storage is empty
+            refreshLocations();
+          }
+        }, []);
 
         const addLocation = async (name) => {
           if (!db) return;
           try { 
             await addDoc(collection(db, "locations"), { name });
-            // After adding, we force refresh to update local storage
-            fetchLocations(true); 
+            // After adding, we must sync with Firebase to get the new ID and update LS
+            await refreshLocations(); 
           } catch (e) { console.error("Error adding location", e); }
         };
 
@@ -260,14 +254,14 @@
           if (!db) return;
           try { 
             await deleteDoc(doc(db, "locations", id));
+            // Optimistic update for speed, then update LS
             const updatedLocs = locations.filter(l => l.id !== id);
             setLocations(updatedLocs);
-            // Update local storage directly to match state
             localStorage.setItem(CACHE_KEY, JSON.stringify(updatedLocs));
           } catch (e) { console.error("Error deleting location", e); }
         };
 
-        return { locations, loading, addLocation, deleteLocation, refreshLocations: fetchLocations };
+        return { locations, loading, addLocation, deleteLocation, refreshLocations };
       };
 
       // 2. Sheets Service
@@ -505,7 +499,7 @@
                 <div><h2 className="text-2xl font-bold capitalize">{adminTab}</h2><p className="text-gray-500 text-sm">Real-time data from Google Sheets</p></div>
                 {adminTab !== 'settings' && (
                   <div className="flex gap-2">
-                    <button onClick={() => { loadAdminData(); refreshLocations(true); }} className="p-2 bg-white border rounded-lg hover:bg-gray-50 text-gray-600" title="Refresh Data & Locations"><RefreshCw size={20} className={isLoadingSubmissions ? 'animate-spin' : ''} /></button>
+                    <button onClick={() => { loadAdminData(); refreshLocations(); }} className="p-2 bg-white border rounded-lg hover:bg-gray-50 text-gray-600" title="Refresh Data & Locations"><RefreshCw size={20} className={isLoadingSubmissions ? 'animate-spin' : ''} /></button>
                     <select value={dashboardFilter} onChange={e => setDashboardFilter(e.target.value)} className="bg-white border rounded-lg px-4 py-2 shadow-sm text-sm outline-none focus:ring-1 focus:ring-black">
                       <option value="all">All Locations</option>
                       {locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
@@ -532,7 +526,30 @@
                      <div className="bg-white rounded-2xl shadow-sm border overflow-hidden animate-fadeIn"><div className="overflow-x-auto"><table className="w-full text-left border-collapse"><thead className="bg-gray-50 border-b"><tr><th className="p-4 font-semibold text-gray-600 text-sm">Date</th><th className="p-4 font-semibold text-gray-600 text-sm">Customer</th><th className="p-4 font-semibold text-gray-600 text-sm">Location</th><th className="p-4 font-semibold text-gray-600 text-sm">Source</th><th className="p-4 font-semibold text-gray-600 text-sm">Rating</th><th className="p-4 font-semibold text-gray-600 text-sm">Details</th><th className="p-4 font-semibold text-gray-600 text-sm text-right">Action</th></tr></thead><tbody className="divide-y">{filteredSubmissions.map((sub, idx) => (<tr key={idx} className="hover:bg-gray-50"><td className="p-4 text-sm text-gray-500">{new Date(sub.timestamp).toLocaleDateString()}</td><td className="p-4 font-medium text-sm">{sub.customerName}</td><td className="p-4 text-sm text-gray-600">{sub.locationName}</td><td className="p-4 text-sm"><span className="bg-blue-50 text-blue-700 px-2 py-1 rounded text-xs font-semibold">{sub.sourceLabel}</span></td><td className="p-4 text-sm text-yellow-500 tracking-widest">{sub.rating ? '★'.repeat(sub.rating) : '-'}</td><td className="p-4 text-sm text-gray-500 max-w-xs truncate">{sub.otherDetails || '-'}</td><td className="p-4 text-right"><button onClick={() => handleSoftDelete(sub.id)} className="text-gray-400 hover:text-red-600 p-2"><Trash2 size={16} /></button></td></tr>))}</tbody></table></div></div>
                   )}
                   {adminTab === 'settings' && (
-                     <div className="max-w-4xl mx-auto animate-fadeIn space-y-6"><div className="bg-white p-6 rounded-2xl shadow-sm border"><h3 className="font-bold text-lg mb-4">Add Store Location</h3><div className="flex gap-3 mb-6"><input type="text" value={newLocationName} onChange={e => setNewLocationName(e.target.value)} placeholder="e.g. Hanamkonda" className="flex-1 border rounded-xl px-4 py-3 focus:ring-2 focus:ring-black outline-none" /><button onClick={() => { if(newLocationName) { addLocation(newLocationName); setNewLocationName(''); } }} className="bg-black text-white px-6 rounded-xl font-medium hover:bg-gray-800 transition-colors">Add</button></div><div className="overflow-hidden border rounded-xl"><table className="w-full text-left"><thead className="bg-gray-50 border-b"><tr><th className="p-4 text-sm font-semibold text-gray-600">Location Name</th><th className="p-4 text-sm font-semibold text-gray-600 text-right">Action</th></tr></thead><tbody className="divide-y">{locations.map(loc => (<tr key={loc.id} className="hover:bg-gray-50"><td className="p-4 font-medium">{loc.name}</td><td className="p-4 text-right"><button onClick={() => deleteLocation(loc.id)} className="text-red-500 hover:text-red-700 hover:bg-red-50 px-3 py-1.5 rounded text-sm transition-colors flex items-center gap-1 ml-auto"><Trash2 size={14} /> Remove</button></td></tr>))}</tbody></table></div></div></div>
+                     <div className="max-w-4xl mx-auto animate-fadeIn space-y-6">
+                       <div className="bg-white p-6 rounded-2xl shadow-sm border">
+                         <div className="flex justify-between items-center mb-4">
+                           <h3 className="font-bold text-lg">Add Store Location</h3>
+                           <button onClick={refreshLocations} className="flex items-center gap-2 text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-2 rounded-lg transition-colors">
+                             <RefreshCw size={14} /> Refresh List
+                           </button>
+                         </div>
+                         <div className="flex gap-3 mb-6">
+                           <input type="text" value={newLocationName} onChange={e => setNewLocationName(e.target.value)} placeholder="e.g. Hanamkonda" className="flex-1 border rounded-xl px-4 py-3 focus:ring-2 focus:ring-black outline-none" />
+                           <button onClick={() => { if(newLocationName) { addLocation(newLocationName); setNewLocationName(''); } }} className="bg-black text-white px-6 rounded-xl font-medium hover:bg-gray-800 transition-colors">Add</button>
+                         </div>
+                         <div className="overflow-hidden border rounded-xl">
+                           <table className="w-full text-left">
+                             <thead className="bg-gray-50 border-b">
+                               <tr><th className="p-4 text-sm font-semibold text-gray-600">Location Name</th><th className="p-4 text-sm font-semibold text-gray-600 text-right">Action</th></tr>
+                             </thead>
+                             <tbody className="divide-y">
+                               {locations.map(loc => (<tr key={loc.id} className="hover:bg-gray-50"><td className="p-4 font-medium">{loc.name}</td><td className="p-4 text-right"><button onClick={() => deleteLocation(loc.id)} className="text-red-500 hover:text-red-700 hover:bg-red-50 px-3 py-1.5 rounded text-sm transition-colors flex items-center gap-1 ml-auto"><Trash2 size={14} /> Remove</button></td></tr>))}
+                             </tbody>
+                           </table>
+                         </div>
+                       </div>
+                     </div>
                   )}
                   {adminTab === 'reports' && (
                     <div className="max-w-2xl mx-auto animate-fadeIn"><div className="bg-white p-8 rounded-2xl shadow-sm border"><div className="flex items-center gap-4 mb-6"><div className="p-3 bg-green-100 text-green-700 rounded-xl"><FileText size={24} /></div><div><h3 className="font-bold text-lg">Export CSV Report</h3><p className="text-gray-500 text-sm">Download raw data processed from Google Sheets.</p></div></div><div className="grid grid-cols-2 gap-4 mb-6"><div><label className="block text-sm font-bold mb-2">Start Date</label><input type="date" value={reportStart} onChange={e => setReportStart(e.target.value)} className="w-full border rounded-xl px-4 py-3" /></div><div><label className="block text-sm font-bold mb-2">End Date</label><input type="date" value={reportEnd} onChange={e => setReportEnd(e.target.value)} className="w-full border rounded-xl px-4 py-3" /></div></div><button onClick={() => { if(!reportStart || !reportEnd) return alert("Select dates."); const start = new Date(reportStart).setHours(0,0,0,0); const end = new Date(reportEnd).setHours(23,59,59,999); const data = submissions.filter(s => { const t = new Date(s.timestamp).getTime(); return t >= start && t <= end; }); if(data.length === 0) return alert("No data in range."); downloadCSV(data); }} className="w-full bg-black text-white py-4 rounded-xl font-bold hover:bg-gray-800 flex justify-center gap-2"><Download size={20} /> Download CSV</button></div></div>
