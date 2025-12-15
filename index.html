@@ -85,7 +85,7 @@
         Loader2, ShoppingBag, ArrowRight, Lock, User, ChevronDown, 
         CheckCircle2, LayoutDashboard, MessageSquare, FileText, 
         Settings, LogOut, RefreshCw, BarChart3, Trash2, Download, X,
-        Phone
+        Phone, Star, Calendar
       } from 'lucide-react';
       import { GoogleGenAI } from "@google/genai";
 
@@ -393,6 +393,10 @@
         const [dashboardFilter, setDashboardFilter] = useState('all');
         const [reportStart, setReportStart] = useState('');
         const [reportEnd, setReportEnd] = useState('');
+        
+        // Added: Date Filtering for Dashboard
+        const [dashboardStartDate, setDashboardStartDate] = useState('');
+        const [dashboardEndDate, setDashboardEndDate] = useState('');
 
         const loadAdminData = async () => {
           setIsLoadingSubmissions(true);
@@ -421,9 +425,27 @@
         };
 
         const filteredSubmissions = useMemo(() => {
-          if (dashboardFilter === 'all') return submissions;
-          return submissions.filter(s => s.locationId === dashboardFilter);
-        }, [submissions, dashboardFilter]);
+          let filtered = submissions;
+          
+          // 1. Filter by Location
+          if (dashboardFilter !== 'all') {
+            filtered = filtered.filter(s => s.locationId === dashboardFilter);
+          }
+
+          // 2. Filter by Start Date
+          if (dashboardStartDate) {
+            const startTimestamp = new Date(dashboardStartDate).setHours(0, 0, 0, 0);
+            filtered = filtered.filter(s => new Date(s.timestamp).getTime() >= startTimestamp);
+          }
+
+          // 3. Filter by End Date
+          if (dashboardEndDate) {
+            const endTimestamp = new Date(dashboardEndDate).setHours(23, 59, 59, 999);
+            filtered = filtered.filter(s => new Date(s.timestamp).getTime() <= endTimestamp);
+          }
+
+          return filtered;
+        }, [submissions, dashboardFilter, dashboardStartDate, dashboardEndDate]);
 
         const stats = useMemo(() => {
           const s = {};
@@ -431,6 +453,25 @@
             s[sub.sourceLabel] = (s[sub.sourceLabel] || 0) + 1;
           });
           return Object.entries(s).sort((a, b) => b[1] - a[1]);
+        }, [filteredSubmissions]);
+
+        // --- NEW: RATING STATISTICS LOGIC ---
+        const ratingStats = useMemo(() => {
+          const counts = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
+          let sum = 0;
+          let totalWithRating = 0;
+          
+          filteredSubmissions.forEach(sub => {
+            const r = parseInt(sub.rating);
+            if (r >= 1 && r <= 5) {
+              counts[r] = (counts[r] || 0) + 1;
+              sum += r;
+              totalWithRating++;
+            }
+          });
+          
+          const average = totalWithRating > 0 ? (sum / totalWithRating).toFixed(1) : "0.0";
+          return { counts, average, totalWithRating };
         }, [filteredSubmissions]);
 
         if (!isAuthenticated) {
@@ -477,10 +518,23 @@
               <div className="p-4 border-t bg-gray-50"><button onClick={() => { setIsAuthenticated(false); setViewMode('user'); }} className="w-full flex items-center gap-2 text-red-600 hover:bg-red-50 px-4 py-2 rounded-lg transition-colors"><LogOut size={16} /> Logout</button></div>
             </aside>
             <main className="flex-1 overflow-y-auto p-4 md:p-8">
-              <div className="flex justify-between items-center mb-8">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
                 <div><h2 className="text-2xl font-bold capitalize">{adminTab}</h2><p className="text-gray-500 text-sm">Real-time data from Google Sheets</p></div>
                 {adminTab !== 'settings' && (
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    {/* Date Filters - Only for Dashboard and Feedbacks */}
+                    {(adminTab === 'dashboard' || adminTab === 'feedbacks') && (
+                      <div className="flex items-center gap-2 bg-white border rounded-lg p-1 px-2 shadow-sm mr-2">
+                        <span className="text-xs font-bold text-gray-500 uppercase hidden sm:inline"><Calendar size={14} className="inline mr-1"/> Date:</span>
+                        <input type="date" value={dashboardStartDate} onChange={e => setDashboardStartDate(e.target.value)} className="text-xs md:text-sm outline-none bg-transparent" />
+                        <span className="text-gray-400">-</span>
+                        <input type="date" value={dashboardEndDate} onChange={e => setDashboardEndDate(e.target.value)} className="text-xs md:text-sm outline-none bg-transparent" />
+                        {(dashboardStartDate || dashboardEndDate) && (
+                            <button onClick={() => { setDashboardStartDate(''); setDashboardEndDate(''); }} className="text-gray-400 hover:text-red-500 ml-1"><X size={14} /></button>
+                        )}
+                      </div>
+                    )}
+
                     <button onClick={() => { loadAdminData(); refreshLocations(); }} className="p-2 bg-white border rounded-lg hover:bg-gray-50 text-gray-600" title="Refresh Data & Locations"><RefreshCw size={20} className={isLoadingSubmissions ? 'animate-spin' : ''} /></button>
                     <select value={dashboardFilter} onChange={e => setDashboardFilter(e.target.value)} className="bg-white border rounded-lg px-4 py-2 shadow-sm text-sm outline-none focus:ring-1 focus:ring-black">
                       <option value="all">All Locations</option>
@@ -493,14 +547,78 @@
                 <>
                   {adminTab === 'dashboard' && (
                     <div className="max-w-6xl mx-auto space-y-6 animate-fadeIn">
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      {/* Top Summary Row - Modified to include Average Rating */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                         <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100"><p className="text-sm text-gray-500 mb-1">Total Submissions</p><p className="text-4xl font-bold">{filteredSubmissions.length}</p></div>
+                        
+                        {/* New Average Rating Card */}
+                        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                          <p className="text-sm text-gray-500 mb-1">Average Rating</p>
+                          <div className="flex items-end gap-2">
+                            <p className="text-4xl font-bold text-yellow-500">{ratingStats.average}</p>
+                            <div className="flex pb-2">
+                               <Star size={16} fill="currentColor" className="text-yellow-500" />
+                            </div>
+                          </div>
+                          <p className="text-xs text-gray-400 mt-1">{ratingStats.totalWithRating} reviews</p>
+                        </div>
+
                         <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100"><p className="text-sm text-gray-500 mb-1">Top Source</p><p className="text-2xl font-bold truncate text-pink-600">{stats.length > 0 ? stats[0][0] : '-'}</p></div>
                         <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100"><p className="text-sm text-gray-500 mb-1">Latest Feedback</p><p className="text-sm font-medium mt-2">{filteredSubmissions[0] ? new Date(filteredSubmissions[0].timestamp).toLocaleString() : 'N/A'}</p></div>
                       </div>
+
+                      {/* Middle Row: Sources & Rating Stats */}
                       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100"><h3 className="font-bold text-lg mb-6 flex items-center gap-2"><BarChart3 size={20} /> Sources Breakdown</h3><div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">{stats.map(([label, count]) => (<div key={label}><div className="flex justify-between text-sm mb-2 font-medium"><span>{label}</span><span className="text-gray-600">{count} ({Math.round((count / filteredSubmissions.length) * 100)}%)</span></div><div className="w-full bg-gray-100 rounded-full h-2"><div className="bg-gradient-to-r from-pink-500 to-purple-600 h-2 rounded-full" style={{ width: `${(count / filteredSubmissions.length) * 100}%` }}></div></div></div>))}</div></div>
-                        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col"><h3 className="font-bold text-lg mb-6">Recent Comments</h3><div className="flex-1 overflow-y-auto pr-2 space-y-3 max-h-[400px] custom-scrollbar">{filteredSubmissions.filter(s => s.otherDetails).slice(0, 10).map((sub, i) => (<div key={i} className="p-4 bg-gray-50 rounded-xl border hover:border-gray-300 transition-colors"><div className="flex justify-between items-start mb-2"><span className="font-bold text-sm text-gray-900">{sub.customerName}</span><span className="text-[10px] text-gray-400 bg-white px-2 py-1 rounded border">{new Date(sub.timestamp).toLocaleDateString()}</span></div><p className="text-sm text-gray-600 italic">"{sub.otherDetails}"</p></div>))}</div></div>
+                        
+                        {/* New Rating Distribution Card */}
+                        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col">
+                          <h3 className="font-bold text-lg mb-6 flex items-center gap-2"><Star size={20} className="text-yellow-500" /> Rating Points Summary</h3>
+                          <div className="space-y-4 flex-1">
+                            {[5, 4, 3, 2, 1].map(star => {
+                              const count = ratingStats.counts[star];
+                              const percentage = ratingStats.totalWithRating > 0 ? (count / ratingStats.totalWithRating) * 100 : 0;
+                              return (
+                                <div key={star} className="flex items-center gap-3 text-sm">
+                                  <div className="flex items-center gap-1 w-12 font-medium text-gray-600">
+                                    {star} <Star size={12} fill="currentColor" className="text-yellow-500" />
+                                  </div>
+                                  <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+                                    <div 
+                                      className="h-full bg-yellow-400 rounded-full transition-all duration-500" 
+                                      style={{ width: `${percentage}%` }}
+                                    />
+                                  </div>
+                                  <div className="w-12 text-right text-gray-500">{count}</div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                          <div className="mt-6 pt-6 border-t text-center text-gray-400 text-sm">
+                             Total Rated Reviews: {ratingStats.totalWithRating}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Bottom Row: Comments */}
+                      <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col">
+                          <h3 className="font-bold text-lg mb-6">Recent Comments</h3>
+                          <div className="flex-1 overflow-y-auto pr-2 space-y-3 max-h-[300px] custom-scrollbar">
+                            {filteredSubmissions.filter(s => s.otherDetails).slice(0, 10).map((sub, i) => (
+                              <div key={i} className="p-4 bg-gray-50 rounded-xl border hover:border-gray-300 transition-colors">
+                                <div className="flex justify-between items-start mb-2">
+                                  <span className="font-bold text-sm text-gray-900">{sub.customerName}</span>
+                                  <div className="flex items-center gap-2">
+                                     <span className="flex items-center gap-1 text-xs text-yellow-600 bg-yellow-50 px-2 py-0.5 rounded border border-yellow-100">
+                                        {sub.rating} <Star size={10} fill="currentColor" />
+                                     </span>
+                                     <span className="text-[10px] text-gray-400 bg-white px-2 py-1 rounded border">{new Date(sub.timestamp).toLocaleDateString()}</span>
+                                  </div>
+                                </div>
+                                <p className="text-sm text-gray-600 italic">"{sub.otherDetails}"</p>
+                              </div>
+                            ))}
+                          </div>
                       </div>
                     </div>
                   )}
