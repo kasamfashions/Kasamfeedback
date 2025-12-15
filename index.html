@@ -85,7 +85,7 @@
         Loader2, ShoppingBag, ArrowRight, Lock, User, ChevronDown, 
         CheckCircle2, LayoutDashboard, MessageSquare, FileText, 
         Settings, LogOut, RefreshCw, BarChart3, Trash2, Download, X,
-        Phone, Star, Calendar
+        Phone, Star, Calendar, Menu
       } from 'lucide-react';
       import { GoogleGenAI } from "@google/genai";
 
@@ -397,6 +397,9 @@
         // Added: Date Filtering for Dashboard
         const [dashboardStartDate, setDashboardStartDate] = useState('');
         const [dashboardEndDate, setDashboardEndDate] = useState('');
+        
+        // NEW: Mobile Menu State
+        const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
         const loadAdminData = async () => {
           setIsLoadingSubmissions(true);
@@ -499,10 +502,33 @@
 
         return (
           <div className="min-h-screen bg-gray-100 flex flex-col md:flex-row font-sans text-gray-800">
-            <aside className="w-full md:w-64 bg-white border-r shadow-sm flex-none z-10 flex flex-col h-screen sticky top-0">
+            
+            {/* Mobile Header */}
+            <div className="md:hidden bg-white p-4 border-b flex items-center justify-between sticky top-0 z-30 shadow-sm">
+                <Logo />
+                <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="p-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">
+                    {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+                </button>
+            </div>
+
+            {/* Mobile Overlay */}
+            {isMobileMenuOpen && (
+                <div 
+                  className="fixed inset-0 bg-black/50 z-40 md:hidden animate-fadeIn"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                />
+            )}
+
+            {/* Sidebar Navigation */}
+            <aside className={`
+                fixed inset-y-0 left-0 z-50 w-64 bg-white border-r shadow-2xl transform transition-transform duration-300 ease-in-out
+                md:translate-x-0 md:static md:h-screen md:shadow-sm md:z-10 flex flex-col
+                ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
+            `}>
               <div className="p-6 border-b flex items-center justify-between">
                 <Logo />
-                <button onClick={() => setViewMode('user')} className="md:hidden p-2 text-gray-500"><X size={20} /></button>
+                {/* Close button inside drawer for mobile */}
+                <button onClick={() => setIsMobileMenuOpen(false)} className="md:hidden p-2 text-gray-500 hover:bg-gray-100 rounded-lg"><X size={20} /></button>
               </div>
               <nav className="p-4 space-y-2 flex-1">
                 {[
@@ -510,27 +536,43 @@
                   { id: 'reports', label: 'Reports', icon: FileText },
                   { id: 'settings', label: 'Settings', icon: Settings },
                 ].map(tab => (
-                  <button key={tab.id} onClick={() => setAdminTab(tab.id)} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${adminTab === tab.id ? 'bg-black text-white' : 'text-gray-600 hover:bg-gray-100'}`}>
+                  <button 
+                    key={tab.id} 
+                    onClick={() => { setAdminTab(tab.id); setIsMobileMenuOpen(false); }} 
+                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${adminTab === tab.id ? 'bg-black text-white' : 'text-gray-600 hover:bg-gray-100'}`}
+                  >
                     <tab.icon size={18} /> {tab.label}
                   </button>
                 ))}
               </nav>
-              <div className="p-4 border-t bg-gray-50"><button onClick={() => { setIsAuthenticated(false); setViewMode('user'); }} className="w-full flex items-center gap-2 text-red-600 hover:bg-red-50 px-4 py-2 rounded-lg transition-colors"><LogOut size={16} /> Logout</button></div>
+              <div className="p-4 border-t bg-gray-50">
+                <button 
+                    onClick={() => { setIsAuthenticated(false); setViewMode('user'); }} 
+                    className="w-full flex items-center gap-2 text-red-600 hover:bg-red-50 px-4 py-2 rounded-lg transition-colors"
+                >
+                    <LogOut size={16} /> Logout
+                </button>
+              </div>
             </aside>
-            <main className="flex-1 overflow-y-auto p-4 md:p-8">
+            
+            <main className="flex-1 overflow-y-auto p-4 md:p-8 h-[calc(100vh-73px)] md:h-screen">
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-                <div><h2 className="text-2xl font-bold capitalize">{adminTab}</h2><p className="text-gray-500 text-sm">Real-time data from Google Sheets</p></div>
+                <div><h2 className="text-2xl font-bold capitalize">{adminTab}</h2><p className="text-gray-500 text-sm">Real-time data from Database</p></div>
                 {adminTab !== 'settings' && (
                   <div className="flex flex-wrap items-center gap-2">
                     {/* Date Filters - Only for Dashboard and Feedbacks */}
                     {(adminTab === 'dashboard' || adminTab === 'feedbacks') && (
-                      <div className="flex items-center gap-2 bg-white border rounded-lg p-1 px-2 shadow-sm mr-2">
-                        <span className="text-xs font-bold text-gray-500 uppercase hidden sm:inline"><Calendar size={14} className="inline mr-1"/> Date:</span>
-                        <input type="date" value={dashboardStartDate} onChange={e => setDashboardStartDate(e.target.value)} className="text-xs md:text-sm outline-none bg-transparent" />
-                        <span className="text-gray-400">-</span>
-                        <input type="date" value={dashboardEndDate} onChange={e => setDashboardEndDate(e.target.value)} className="text-xs md:text-sm outline-none bg-transparent" />
+                      <div className="flex items-center gap-2 bg-white border rounded-lg p-2 shadow-sm mr-2">
+                        <div className="flex items-center gap-2 border-r pr-2 border-gray-200">
+                           <span className="text-xs font-bold text-gray-500 uppercase flex items-center gap-1"> From</span>
+                           <input type="date" value={dashboardStartDate} onChange={e => setDashboardStartDate(e.target.value)} className="text-xs md:text-sm outline-none bg-transparent text-gray-700" />
+                        </div>
+                        <div className="flex items-center gap-2">
+                           <span className="text-xs font-bold text-gray-500 uppercase">To</span>
+                           <input type="date" value={dashboardEndDate} onChange={e => setDashboardEndDate(e.target.value)} className="text-xs md:text-sm outline-none bg-transparent text-gray-700" />
+                        </div>
                         {(dashboardStartDate || dashboardEndDate) && (
-                            <button onClick={() => { setDashboardStartDate(''); setDashboardEndDate(''); }} className="text-gray-400 hover:text-red-500 ml-1"><X size={14} /></button>
+                            <button onClick={() => { setDashboardStartDate(''); setDashboardEndDate(''); }} className="text-gray-400 hover:text-red-500 ml-1" title="Clear Dates"><X size={14} /></button>
                         )}
                       </div>
                     )}
