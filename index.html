@@ -818,7 +818,7 @@
                     </div>
                   </div>
 
-                  <h3 className="text-2xl font-bold text-center mb-8 mt-2 serif-font text-gray-800">How did you hear <span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-600 to-purple-600">about us?</span></h3>
+                  <h3 className="text-2xl font-bold text-center mb-8 mt-2 serif-font text-gray-800">How did you hear about <span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-600 to-purple-600">our Wedding Collection Offers?</span></h3>
                   <div className={`transition-all duration-500 ${!customerName.trim() || !phoneNumber.trim() ? 'opacity-50 pointer-events-none grayscale' : 'opacity-100'}`}>
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6 mb-12">{FEEDBACK_OPTIONS.map((option) => (<OptionCard key={option.id} option={option} isSelected={selectedSourceId === option.id} onClick={() => setSelectedSourceId(option.id)} />))}</div>
                     {selectedSourceId === 'other' && (<div className="max-w-xl mx-auto mb-10"><input type="text" value={otherText} onChange={(e) => setOtherText(e.target.value)} placeholder="Please specify..." className="w-full px-5 py-4 rounded-xl border-2 border-indigo-100 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 outline-none transition-all shadow-sm text-lg" autoFocus /></div>)}
@@ -864,3 +864,4 @@
     </script>
   </body>
 </html>
+
