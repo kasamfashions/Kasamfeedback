@@ -797,17 +797,34 @@
         setStep('success');
       };
 
+      useEffect(() => {
+        if (step === 'success') {
+          const timer = setTimeout(() => {
+            setStep('feedback'); // Return to Feedback Form directly
+            // Location ID is PRESERVED so they don't have to select it again
+            setSelectedSourceId(null);
+            setOtherText('');
+            setCustomerName('');
+            setPhoneNumber('');
+            setRating(null);
+            setAiMessage('');
+          }, 3000);
+          return () => clearTimeout(timer);
+        }
+      }, [step]);
+
       if (viewMode === 'admin') return <AdminPanel isAuthenticated={isAuthenticated} setIsAuthenticated={setIsAuthenticated} setViewMode={setViewMode} locations={locations} addLocation={addLocation} deleteLocation={deleteLocation} refreshLocations={refreshLocations} />;
 
       if (step === 'success') {
         return (
-          <div className="min-h-screen relative overflow-hidden bg-cover bg-center flex items-center justify-center p-4" style={{ backgroundImage: 'url("https://images.unsplash.com/photo-1595777457583-95e059d581b8?q=80&w=2070&auto=format&fit=crop")' }}>
-            <div className="absolute inset-0 bg-black/40 backdrop-blur-sm"></div>
+          <div className="min-h-screen relative overflow-hidden flex items-center justify-center p-4">
+            <Background />
+            <div className="absolute inset-0 bg-black/40 backdrop-blur-sm z-0"></div>
             <div className="glass-panel max-w-lg w-full rounded-3xl p-10 text-center relative z-10 animate-float shadow-2xl">
               <div className="w-20 h-20 bg-pink-100 rounded-full flex items-center justify-center mx-auto mb-6 text-pink-600 shadow-inner">
-                <Gem size={40} />
+                <CheckCircle2 size={40} />
               </div>
-              <h2 className="text-3xl md:text-4xl font-bold mb-4 text-gray-800 serif-font">Thank You! 💍</h2>
+              <h2 className="text-3xl md:text-4xl font-bold mb-4 text-gray-800 serif-font">Thank You!</h2>
               <div className="h-1 w-20 bg-pink-500 mx-auto mb-6 rounded-full"></div>
               <p className="text-xl text-gray-700 italic font-medium leading-relaxed mb-8">"{aiMessage}"</p>
               <button onClick={() => { setStep('feedback'); setSelectedSourceId(null); setOtherText(''); setCustomerName(''); setPhoneNumber(''); setRating(null); }} className="text-sm text-black hover:text-black-200 underline">Return to Home</button>
@@ -882,10 +899,10 @@
                           key={opt.value}
                           onClick={() => setRating(opt.value)}
                           className={`
-                                        text-4xl md:text-5xl transition-all duration-300 transform hover:scale-125 focus:outline-none
+                                        text-4xl md:text-5xl transition-all duration-300 transform hover:scale-125 focus:outline-none drop-shadow-md
                                         ${rating === opt.value
-                              ? 'scale-125 grayscale-0 opacity-100 drop-shadow-xl'
-                              : 'grayscale opacity-60 hover:grayscale-0 hover:opacity-100'
+                              ? 'scale-125 drop-shadow-xl'
+                              : 'opacity-80 hover:opacity-100'
                             }
                                     `}
                           title={opt.label}
