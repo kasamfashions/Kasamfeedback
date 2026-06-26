@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Kasam Wedding Collection Feedback</title>
+  <title>Kasam Store Feedback</title>
   <link rel="icon" type="image/png"
     href="https://raw.githubusercontent.com/kasamfashions/Kasamfeedback/2f0b8e0d7cd18cafa3aec383b55d6d884258d293/Feedback.png" />
   <script src="https://cdn.tailwindcss.com"></script>
@@ -323,11 +323,11 @@
       try {
         const response = await ai.models.generateContent({
           model: 'gemini-2.5-flash',
-          contents: `Generate a short, warm, and elegant wedding-fashion-themed thank you message (max 15 words) for a customer who visited our Wedding Collection via "${sourceLabel}".`,
+          contents: `Generate a short, warm, and elegant store-themed thank you message (max 15 words) for a customer who visited our store via "${sourceLabel}".`,
         });
         return response.text.trim();
       } catch (error) {
-        return "Thank you so much! Your impeccable taste led you to the right place.";
+        return "Thank you so much! Your visit made our store shine.";
       }
     };
 
@@ -379,10 +379,10 @@
         <div className="fixed inset-0 z-0 overflow-hidden">
           <div
             className="absolute inset-0 bg-cover bg-center"
-            style={{ backgroundImage: `url("https://images.unsplash.com/photo-1583939003579-730e3918a45a?q=80&w=2070&auto=format&fit=crop")` }}
+            style={{ backgroundImage: `url("https://images.unsplash.com/photo-1542838132-92c53300491e?q=80&w=2070&auto=format&fit=crop")` }}
           />
           <div className="absolute inset-0 bg-white/80 backdrop-blur-[3px]"></div>
-          <div className="absolute inset-0 bg-gradient-to-br from-pink-50/60 via-white/40 to-blue-50/60 mix-blend-overlay"></div>
+          <div className="absolute inset-0 bg-gradient-to-br from-slate-50/60 via-white/40 to-sky-50/60 mix-blend-overlay"></div>
         </div>
       );
     };
@@ -1478,7 +1478,7 @@
           <div className="relative z-10 container mx-auto px-4 py-4 md:py-8 max-w-6xl min-h-[80vh] flex flex-col">
             <header className="text-center mb-10 flex-none">
               <div className="inline-block p-3 rounded-full bg-white/80 shadow-sm mb-4 backdrop-blur-sm"><span className="text-xs font-bold tracking-widest text-pink-600 uppercase px-2">{step === 'location' ? 'Welcome, Kasam Fashions Private Limted' : locations.find(l => l.id === selectedLocationId)?.name}</span></div>
-              <h1 className="text-4xl md:text-6xl font-bold text-gray-900 serif-font mt-2 leading-tight">{step === 'location' ? <>Select Your <span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-600 to-purple-600">Store Location</span></> : <>💍 Rate our <span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-600 to-purple-600">Wedding Collections</span> 👰‍♀️</>}</h1>
+              <h1 className="text-4xl md:text-6xl font-bold text-gray-900 serif-font mt-2 leading-tight">{step === 'location' ? <>Select Your <span className="text-transparent bg-clip-text bg-gradient-to-r from-sky-600 to-blue-600">Store Location</span></> : <>Rate our <span className="text-transparent bg-clip-text bg-gradient-to-r from-sky-600 to-blue-600">Store Experience</span></>}</h1>
             </header>
             {step === 'location' && (
               <div className="flex-1 flex flex-col items-center justify-center animate-fadeIn pb-20">
@@ -1518,7 +1518,7 @@
                   </div>
                 </div>
 
-                <h3 className="text-2xl font-bold text-center mb-8 mt-2 serif-font text-gray-800">✨ How did you hear about <span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-600 to-purple-600">our Wedding Offers?</span> 🥂</h3>
+                <h3 className="text-2xl font-bold text-center mb-8 mt-2 serif-font text-gray-800">✨ How did you hear about <span className="text-transparent bg-clip-text bg-gradient-to-r from-sky-600 to-blue-600">our store?</span></h3>
                 <div className={`transition-all duration-500 ${!customerName.trim() || !phoneNumber.trim() ? 'opacity-50 pointer-events-none grayscale' : 'opacity-100'}`}>
                   <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6 mb-12">{FEEDBACK_OPTIONS.map((option) => (<OptionCard key={option.id} option={option} isSelected={selectedSourceId === option.id} onClick={() => setSelectedSourceId(option.id)} />))}</div>
                   {selectedSourceId === 'other' && (<div className="max-w-xl mx-auto mb-10"><input type="text" value={otherText} onChange={(e) => setOtherText(e.target.value)} placeholder="Please specify..." className="w-full px-5 py-4 rounded-xl border-2 border-indigo-100 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 outline-none transition-all shadow-sm text-lg" autoFocus /></div>)}
